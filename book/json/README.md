@@ -36,7 +36,7 @@ pairs, and an ordered list of values. Values can be strings, Booleans,
 floats, integers, or null. Let's see what a JSON record for an example book
 description looks like: [values/in JSON data]{.idx}[key/value pairs]{.idx}
 
-```
+``` file=examples/book.json
 {
   "title": "Real World OCaml",
   "tags" : [ "functional programming", "ocaml", "algorithms" ],
@@ -73,14 +73,13 @@ library/installation of]{.idx}[static checking]{.idx}[compile-time static
 checking]{.idx}[unit tests]{.idx}
 
 ::: {data-type=note}
-### Installing the Yojson Library
+##### Installing the Yojson Library
 
 There are several JSON libraries available for OCaml. For this chapter, we've
 picked the [Yojson](https://github.com/mjambon/yojson) library by Martin Jambon.
 It's easiest to install via OPAM by running `opam install yojson`. See
-[this Real World OCaml page](http://realworldocaml.org/install) for
-installation instructions if you haven't already got OPAM. Once installed,
-you can open it in the `utop` toplevel by:
+[the installation instructions](install.html) if you haven't already got opam.
+Once installed, you can open it in the `utop` toplevel by:
 :::
 
 ```ocaml env=install
@@ -91,11 +90,11 @@ you can open it in the `utop` toplevel by:
 
 ## Parsing JSON with Yojson
 
-The JSON specification has very few data types, and the `Yojson.Basic.json`
+The JSON specification has very few data types, and the `Yojson.Basic.t`
 type that follows is sufficient to express any valid JSON structure: [JSON
 data/parsing with Yojson]{.idx}[Yojson library/parsing JSON with]{.idx}
 
-```ocaml file=yojson_basic.mli
+```ocaml file=examples/yojson_basic.mli,part=0
 type json = [
   | `Assoc of (string * json) list
   | `Bool of bool
@@ -127,7 +126,7 @@ definition:
 Let's parse the earlier JSON example into this type now. The first stop is
 the `Yojson.Basic` documentation, where we find these helpful functions:
 
-```ocaml file=yojson_basic.mli,part=1
+```ocaml file=examples/yojson_basic.mli,part=1
 val from_string : ?buf:Bi_outbuf.t -> ?fname:string -> ?lnum:int ->
    string -> json
 (* Read a JSON value from a string.
@@ -159,7 +158,7 @@ makes their purpose much clearer. The three ways of parsing JSON are either
 directly from a string, from a file on a filesystem, or via a buffered input
 channel:
 
-```ocaml file=yojson_basic_simple.mli
+```ocaml file=examples/yojson_basic_simple.mli
 val from_string  : string     -> json
 val from_file    : string     -> json
 val from_channel : in_channel -> json
@@ -168,7 +167,7 @@ val from_channel : in_channel -> json
 The next example shows both the `string` and `file` functions in action,
 assuming the JSON record is stored in a file called *book.json*:
 
-```ocaml file=read_json/read_json.ml
+```ocaml file=examples/read_json/read_json.ml
 open Core
 
 let () =
@@ -179,20 +178,14 @@ let () =
   (* Use the file JSON constructor *)
   let json2 = Yojson.Basic.from_file "book.json" in
   (* Test that the two values are the same *)
-  print_endline (if json1 = json2 then "OK" else "FAIL")
+  print_endline (if Yojson.Basic.equal json1 json2 then "OK" else "FAIL")
 ```
 
 You can build this by running `dune`:
 
-```scheme
-(executable
-  (name      read_json)
-  (libraries core yojson))
-```
-
-
-
-```sh dir=read_json
+```sh dir=examples/read_json
+$ dune exec -- ./read_json.exe
+OK
 ```
 
 The `from_file` function accepts an input filename and takes care of opening
@@ -210,7 +203,7 @@ let's manipulate it from OCaml code and extract specific fields:
 [values/selecting from JSON structures]{.idx #VALjson}[JSON data/selecting
 values from]{.idx #JSONselval}
 
-```ocaml file=parse_book/parse_book.ml
+```ocaml file=examples/parse_book/parse_book.ml
 open Core
 
 let () =
@@ -242,7 +235,7 @@ let () =
 
 Now build and run this in the same way as the previous example:
 
-```scheme
+```scheme file=examples/parse_book/dune
 (executable
   (name      parse_book)
   (libraries core yojson))
@@ -250,7 +243,7 @@ Now build and run this in the same way as the previous example:
 
 
 
-```sh dir=parse_book
+```sh dir=examples/parse_book
 $ dune build parse_book.exe
 $ ./_build/default/parse_book.exe
 Title: Real World OCaml (450)
@@ -265,8 +258,8 @@ This code introduces the `Yojson.Basic.Util` module, which contains
 strongly typed OCaml value. [combinators/functional
 combinators]{.idx}[functional combinators]{.idx}
 
-<aside data-type="sidebar">
-<h5>Functional Combinators</h5>
+::: {data-type=note}
+##### Functional Combinators
 
 Combinators are a design pattern that crops up quite often in functional
 programming. John Hughes defines them as "a function which builds program
@@ -276,7 +269,7 @@ transformations over values.
 
 You've already run across several of these in the `List` module:
 
-```ocaml file=list_excerpt.mli
+```ocaml file=examples/list_excerpt.mli,part=0
 val map  : 'a list -> f:('a -> 'b)   -> 'b list
 val fold : 'a list -> init:'accum -> f:('accum -> 'a -> 'accum) -> 'accum
 ```
@@ -287,7 +280,7 @@ is simplest, with the resulting list being output directly. `fold` applies
 each value in the input list to a function that accumulates a single result,
 and returns that instead:
 
-```ocaml file=list_excerpt.mli,part=1
+```ocaml file=examples/list_excerpt.mli,part=1
 val iter : 'a list -> f:('a -> unit) -> unit
 ```
 
@@ -296,7 +289,7 @@ imperative code. The input function is applied to every value, but no result
 is supplied. The function must instead apply some side effect such as
 changing a mutable record field or printing to the standard output.
 
-</aside>
+:::
 
 `Yojson` provides several combinators in the `Yojson.Basic.Util` module, some
 of which are listed in [Table15_1](json.html#table15_1){data-type=xref}.
@@ -371,7 +364,7 @@ our example JSON, only `is_online` is present and `is_translated` will be
 
 ```ocaml env=parse_book
 # let authors = json |> member "authors" |> to_list
-val authors : Yojson.Basic.json list =
+val authors : Yojson.Basic.t list =
   [`Assoc
      [("name", `String "Jason Hickey"); ("affiliation", `String "Google")];
    `Assoc
@@ -413,12 +406,12 @@ statically via a type error.
 ## Constructing JSON Values
 
 Building and printing JSON values is pretty straightforward given the
-`Yojson.Basic.json` type. You can just construct values of type `json` and
+`Yojson.Basic.t` type. You can just construct values of type `t` and
 call the `to_string` function on them. Let's remind ourselves of the
-`Yojson.Basic.json` type again: [values/in JSON data]{.idx}[JSON
+`Yojson.Basic.t` type again: [values/in JSON data]{.idx}[JSON
 data/constructing values]{.idx}
 
-```ocaml file=yojson_basic.mli
+```ocaml file=examples/yojson_basic.mli,part=0
 type json = [
   | `Assoc of (string * json) list
   | `Bool of bool
@@ -453,11 +446,11 @@ you haven't used yet (e.g. `Int` or `Null`):
 
 ```ocaml env=build_json
 # Yojson.Basic.pretty_to_string
-- : ?std:bool -> Yojson.Basic.json -> string = <fun>
+- : ?std:bool -> Yojson.Basic.t -> string = <fun>
 ```
 
 The `pretty_to_string` function has a more explicit signature that requires
-an argument of type `Yojson.Basic.json`. When `person` is applied to
+an argument of type `Yojson.Basic.t`. When `person` is applied to
 `pretty_to_string`, the inferred type of `person` is statically checked
 against the structure of the `json` type to ensure that they're compatible:
 
@@ -477,8 +470,8 @@ reliability, as all the uses of polymorphic variants are still checked at
 compile time. [errors/type errors]{.idx}[type checking]{.idx}[polymorphic
 variant types/type checking and]{.idx}[type inference/benefits of]{.idx}
 
-<aside data-type="sidebar">
-<h5>Polymorphic Variants and Easier Type Checking</h5>
+::: {data-type=note}
+##### Polymorphic Variants and Easier Type Checking
 
 One difficulty you will encounter is that type errors involving polymorphic
 variants can be quite verbose. For example, suppose you build an `Assoc` and
@@ -489,10 +482,10 @@ mistakenly include a single value instead of a list of keys:
 val person : [> `Assoc of string * [> `String of string ] ] =
   `Assoc ("name", `String "Anil")
 # Yojson.Basic.pretty_to_string person
-Characters 30-36:
+Line 1, characters 31-37:
 Error: This expression has type
          [> `Assoc of string * [> `String of string ] ]
-       but an expression was expected of type Yojson.Basic.json
+       but an expression was expected of type Yojson.Basic.t
        Types for tag `Assoc are incompatible
 ```
 
@@ -502,15 +495,14 @@ this error to a shorter form by adding explicit type annotations as a hint
 about your intentions:
 
 ```ocaml env=build_json
-# let (person : Yojson.Basic.json) =
+# let (person : Yojson.Basic.t) =
   `Assoc ("name", `String "Anil")
-Characters 44-68:
+Line 2, characters 10-34:
 Error: This expression has type 'a * 'b
-       but an expression was expected of type
-         (string * Yojson.Basic.json) list
+       but an expression was expected of type (string * Yojson.Basic.t) list
 ```
 
-We've annotated `person` as being of type `Yojson.Basic.json`, and as a
+We've annotated `person` as being of type `Yojson.Basic.t`, and as a
 result, the compiler spots that the argument to the `Assoc` variant has the
 incorrect type. This illustrates the strengths and weaknesses of polymorphic
 variants: they're lightweight and flexible, but the error messages can be
@@ -521,7 +513,7 @@ We'll discuss more techniques like this that help you interpret type errors
 more easily in
 [The Compiler Frontend Parsing And Type Checking](compiler-frontend.html#the-compiler-frontend-parsing-and-type-checking){data-type=xref}.
 
-</aside>
+:::
 
 ## Using Nonstandard JSON Extensions {#using-non-standard-json-extensions}
 
@@ -532,7 +524,7 @@ human-readable, local format. The `Yojson.Safe.json` type is a superset of
 the `Basic` polymorphic variant and looks like this: [Yojson library/extended
 JSON format support]{.idx}[JSON data/nonstandard extensions for]{.idx}
 
-```ocaml file=yojson_safe.mli
+```ocaml file=examples/yojson_safe.mli,part=0
 type json = [
   | `Assoc of (string * json) list
   | `Bool of bool
@@ -578,8 +570,8 @@ that can be easily exchanged with other languages.
 You can convert a `Safe.json` to a `Basic.json` type by using the `to_basic`
 function as follows:
 
-```ocaml file=yojson_safe.mli,part=1
-val to_basic : json -> Yojson.Basic.json
+```ocaml file=examples/yojson_safe.mli,part=1
+val to_basic : json -> Yojson.Basic.t
 (** Tuples are converted to JSON arrays, Variants are converted to
     JSON strings or arrays of a string (constructor) and a json value
     (argument). Long integers are converted to JSON strings.
@@ -609,7 +601,7 @@ OCaml modules, which are then used throughout your application. [ATDgen
 Library/installation of]{.idx}[Domain Specific Language]{.idx}
 
 ::: {data-type=note}
-### Installing the ATDgen Library and Tool
+##### Installing the ATDgen Library and Tool
 
 ATDgen installs some OCaml libraries that interface with Yojson, and also a
 command-line tool that generates code. It can all be installed via OPAM:
@@ -618,13 +610,13 @@ command-line tool that generates code. It can all be installed via OPAM:
 ```
 $ opam install atdgen
 $ atdgen -version
-1.2.3
+2.0.0
 ```
 
 The command-line tool will be installed within your
 <em class="filename">~/.opam</em> directory and should already be on your
 `PATH` from running `opam config env`. See
-[this Real World OCaml page](http://realworldocaml.org/install) if this isn't
+[the installation instructions](install.html) if this isn't
 working.
 
 ### ATD Basics
@@ -642,7 +634,7 @@ The following ATD code fragment describes the GitHub authorization API (which
 is based on a pseudostandard web protocol known as OAuth): [GitHub
 API]{.idx}[OAuth web protocol]{.idx}
 
-```
+``` file=examples/github.atd
 type scope = [
     User <json name="user">
   | Public_repo <json name="public_repo">
@@ -707,7 +699,7 @@ The `atdgen` command will generate some new files in your current directory.
 `github_t.ml` and `github_t.mli` will contain an OCaml module with types
 defined that correspond to the ATD file:
 
-```sh
+```sh dir=examples,skip
 $ atdgen -t github.atd
 $ atdgen -j github.atd
 $ ocamlfind ocamlc -package atd -i github_t.mli
@@ -742,7 +734,7 @@ provides serialization functions to and from JSON. You can read the
 most uses are the conversion functions to and from a string. For our
 preceding example, this looks like:
 
-```ocaml file=github_j_excerpt.mli
+```ocaml file=examples/github_j_excerpt.mli
 val string_of_authorization_request :
   ?len:int -> authorization_request -> string
   (** Serialize a value of type {!authorization_request}
@@ -781,7 +773,7 @@ flag]{.idx data-primary-sortas=j-std}[flags]{.idx}
 : Always explicitly outputs a JSON value if possible. This requires the
   default value for that field to be defined in the ATD specification.
 
-The full [ATD specification](http://mjambon.com/atdgen/atdgen-manual.html) is
+The full [ATD specification](https://atd.readthedocs.io/en/latest/) is
 quite sophisticated and documented online. The ATD compiler can also target
 formats other than JSON and outputs code for other languages (such as Java)
 if you need more interoperability.
@@ -805,7 +797,7 @@ present in the response will be ignored by the ATD parser, so we don't need a
 completely exhaustive specification of every field that GitHub might send
 back:
 
-```
+``` file=examples/github_org_info/github_org.atd
 type org = {
   login: string;
   id: int;
@@ -820,7 +812,7 @@ type org = {
 Let's build the OCaml type declaration first by calling `atdgen -t` on the
 specification file:
 
-```sh dir=github_org_info
+```sh dir=examples/github_org_info,skip
 $ dune build github_org_t.mli
 $ cat _build/default/github_org_t.mli
 (* Auto-generated from "github_org.atd" *)
@@ -842,7 +834,7 @@ logic to convert JSON buffers to and from this type. Calling `atdgen -j` will
 generate this serialization code for us in a new file called
 `github_org_j.ml`:
 
-```sh dir=github_org_info
+```sh dir=examples/github_org_info,skip
 $ dune build github_org_j.mli
 $ cat _build/default/github_org_j.mli
 (* Auto-generated from "github_org.atd" *)
@@ -891,17 +883,17 @@ and uses these modules to output a one-line summary. Our following example
 does just that.
 
 The following code calls the cURL command-line utility by using the
-`Core_extended.Shell` interface to run an external command and capture its
+`Shell` interface to run an external command and capture its
 output. You'll need to ensure that you have cURL installed on your system
 before running the example. You might also need to
-`opam install core_extended` if you haven't installed it previously:
+`opam install shell` if you haven't installed it previously:
 
-```ocaml file=github_org_info/github_org_info.ml
+```ocaml file=examples/github_org_info/github_org_info.ml
 open Core
 
 let print_org file () =
   let url = sprintf "https://api.github.com/orgs/%s" file in
-  Core_extended.Shell.run_full "curl" [url]
+  Shell.run_full "curl" [url]
   |> Github_org_j.org_of_string
   |> fun org ->
   let open Github_org_t in
@@ -919,7 +911,7 @@ let () =
 The following is a short shell script that generates all of the OCaml code
 and also builds the final executable:
 
-```scheme
+```scheme file=examples/github_org_info/dune
 (rule
   (targets github_org_j.ml github_org_j.mli)
   (deps    github_org.atd)
@@ -934,14 +926,14 @@ and also builds the final executable:
 
 (executable
   (name      github_org_info)
-  (libraries core yojson atdgen core_extended)
+  (libraries core yojson atdgen shell)
   (flags     :standard -w -32)
   (modules   github_org_info github_org_t github_org_j))
 ```
 
 
 
-```sh dir=github_org_info
+```sh dir=examples/github_org_info,skip
 $ dune build github_org_info.exe
 ```
 
@@ -949,7 +941,7 @@ You can now run the command-line tool with a single argument to specify the
 name of the organization, and it will dynamically fetch the JSON from the
 web, parse it, and render the summary to your console:
 
-```sh dir=github_org_info,non-deterministic=output
+```sh dir=examples/github_org_info,non-deterministic=output,skip
 $ dune exec -- ./github_org_info.exe mirage
 MirageOS (131943) with 125 public repos
 $ dune exec -- ./github_org_info.exe janestreet

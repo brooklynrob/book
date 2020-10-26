@@ -20,11 +20,13 @@ type src = [
 | `Toc_page
 | `FAQs
 | `Install
+| `Latex
 ]
 
 (** Make an HTML page from the given [src] and save it to [out_dir]. *)
 val make
   :  ?repo_root:string
+  -> ?include_wip:bool
   -> out_dir:string
   -> src
   -> unit Deferred.t

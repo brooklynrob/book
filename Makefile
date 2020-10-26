@@ -1,17 +1,17 @@
-.PHONY: all clean dep publish promote test test-all docker
+.PHONY: all clean publish promote test test-all docker depext \
+	duniverse-init duniverse-upgrade
+
+DUNIVERSE ?= duniverse
 
 all:
-	@dune build @site
-	@echo Site has been generated in _build/default/static/
+	@dune build @site @pdf
+	@echo The site and the pdf have been generated in _build/default/static/
 
 test:
 	dune runtest
 
 test-all:
-	dune build @runtest-all
-
-dep:
-	dune exec -- rwo-dep
+	dune runtest --profile non-deterministic
 
 promote:
 	dune promote
@@ -22,15 +22,9 @@ clean:
 docker:
 	docker build -t ocaml/rwo .
 
-publish:
-	rm -rf .gh-pages
-	git clone `git config --get remote.origin.url` .gh-pages --reference .
-	git -C .gh-pages checkout --orphan gh-pages
-	git -C .gh-pages reset
-	git -C .gh-pages clean -dxf
-	cp -r _build/default/static/* .gh-pages/
-	echo dev.realworldocaml.org > .gh-pages/CNAME
-	git -C .gh-pages add .
-	git -C .gh-pages commit -m "Update Pages"
-	git -C .gh-pages push origin gh-pages -f
-	rm -rf .gh-pages
+duniverse-init:
+	$(DUNIVERSE) init
+
+duniverse-upgrade: duniverse-init
+	rm -rf duniverse/
+	$(DUNIVERSE) pull

@@ -45,7 +45,7 @@ allocates a new list with the requisite key/value pair added.
 
 Now we can write `freq.ml`.
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq/freq.ml
+```ocaml file=examples/erroneous/freq/freq.ml
 open Base
 open Stdio
 
@@ -84,7 +84,7 @@ print them to the screen. These operations are tied together using the
 [let ( ) declaration]{.idx}[main function]{.idx}
 
 ::: {.allow_break data-type=note}
-### Where Is `main`?
+##### Where Is `main`?
 
 Unlike programs in C, Java or C#, programs in OCaml don't have a unique
 `main` function. When an OCaml program is evaluated, all the statements in
@@ -105,9 +105,11 @@ is common for functions that operate primarily by side effect.
 If we weren't using `Base` or any other external libraries, we could build
 the executable like this:
 
-```sh dir=../../examples/code/files-modules-and-programs/freq
-$ ocamlc freq.ml -o freq.byte
+```sh dir=examples/erroneous/freq
+$ ocamlopt freq.ml -o freq
 File "freq.ml", line 1, characters 5-9:
+1 | open Base
+         ^^^^
 Error: Unbound module Base
 [2]
 ```
@@ -117,12 +119,12 @@ need a somewhat more complex invocation to get them linked in: [OCaml
 toolchain/ocamlc]{.idx}[OCaml toolchain/ocamlfind]{.idx}[Base standard
 library/finding with ocamlfind]{.idx}
 
-```sh dir=../../examples/code/files-modules-and-programs/freq
-$ ocamlfind ocamlc -linkpkg -package base -package stdio freq.ml -o freq.byte
+```sh dir=examples/erroneous/freq
+$ ocamlfind ocamlopt -linkpkg -package base -package stdio freq.ml -o freq
 ```
 
 This uses `ocamlfind`, a tool which itself invokes other parts of the
-OCaml toolchain (in this case, `ocamlc`) with the appropriate flags to
+OCaml toolchain (in this case, `ocamlopt`) with the appropriate flags to
 link in particular libraries and packages. Here, `-package base` is
 asking `ocamlfind` to link in the `Base` library; `-linkpkg` asks
 ocamlfind to link in the packages as is necessary for building an
@@ -133,7 +135,7 @@ projects require a tool to orchestrate the build. One good tool for this task
 is `dune`. To invoke `dune`, you need to have a `dune` file that
 specifies the details of the build. [dune]{.idx}
 
-```scheme
+```scheme file=examples/correct/freq-dune/dune
 (executable
   (name      freq)
   (libraries base stdio))
@@ -141,62 +143,79 @@ specifies the details of the build. [dune]{.idx}
 
 With that in place, we can invoke `dune` as follows.
 
-```sh dir=../../examples/code/files-modules-and-programs/freq-obuild
-$ dune build freq.bc
+```sh dir=examples/correct/freq-dune
+$ dune build freq.exe
 ```
 
-We can run the resulting executable, `freq.bc`, from the command line. The
-following invocation extracts strings from the `ocamlopt` binary, reporting
-the most frequently occurring ones. Note that the specific results will vary
-from platform to platform, since the binary itself will differ between
-platforms. [OCaml toolchain/dune]{.idx}[native-code compiler/vs. bytecode
-compiler]{.idx}[bytecode compiler/vs. native-code compiler]{.idx}[OCaml
-toolchain/ocamlopt]{.idx}[OCaml toolchain/ocamlc]{.idx}[code
-compilers/bytecode vs. native
-code]{.idx}<a data-type="indexterm" data-startref="FILEsnglprog">&nbsp;</a><a data-type="indexterm" data-startref="Psingfil">&nbsp;</a>
+We can run the resulting executable, `freq.exe`, from the command line.
+Executables built with `dune` will be left in the `_build/default`
+directory, from which they can be invoked.  The specific invocation
+below will count the words that come up in the file `freq.ml`
+itself. [OCaml toolchain/dune]{.idx}
 
-```sh dir=../../examples/code/files-modules-and-programs/freq-obuild,non-deterministic=command
-$ strings `which ocamlopt` | ./_build/default/freq.bc
- 92: <hov2>
- 76: list.ml
- 54: bytecomp/matching.ml
- 53: p` <
- 47: typing/env.ml
- 46: <hov>
- 43: string.ml
- 42: typing/parmatch.ml
- 41: typing/ctype.ml
- 40: utils/misc.ml
+```sh dir=examples/correct/freq-dune
+$ grep -Eo '[[:alpha:]]+' freq.ml | ./_build/default/freq.exe
+  5: line
+  5: List
+  5: counts
+  4: count
+  4: fun
+  4: x
+  4: equal
+  3: let
+  2: f
+  2: l
 ```
+
+Conveniently, `dune` allows us to combine the building and running an
+executable into a single operation, which we can do using `dune exec`.
+
+```sh dir=examples/correct/freq-dune
+$ grep -Eo '[[:alpha:]]+' freq.ml | dune exec ./freq.exe
+  5: line
+  5: List
+  5: counts
+  4: count
+  4: fun
+  4: x
+  4: equal
+  3: let
+  2: f
+  2: l
+```
+
 
 ::: {data-type=note}
-### Bytecode Versus Native Code
+##### Bytecode Versus Native Code
 
-OCaml ships with two compilers: the `ocamlc` bytecode compiler and the
-`ocamlopt` native-code compiler. Programs compiled with `ocamlc` are
-interpreted by a virtual machine, while programs compiled with `ocamlopt` are
-compiled to native machine code to be run on a specific operating system and
-processor architecture. With `dune`, targets ending with `.bc` are built
-as bytecode executables, and those ending with `.exe` are built as native
-code.
+OCaml ships with two compilers: the `ocamlopt` native code compiler
+and the `ocamlc` bytecode compiler.  Programs compiled with `ocamlc`
+are interpreted by a virtual machine, while programs compiled with
+`ocamlopt` are compiled to machine code to be run on a specific
+operating system and processor architecture. With `dune`, targets
+ending with `.bc` are built as bytecode executables, and those ending
+with `.exe` are built as native code.
 
-Aside from performance, executables generated by the two compilers have
-nearly identical behavior. There are a few things to be aware of. First, the
-bytecode compiler can be used on more architectures, and has some tools that
-are not available for native code. For example, the OCaml debugger only works
-with bytecode (although `gdb`, the GNU Debugger, works with OCaml native-code
-applications). The bytecode compiler is also quicker than the native-code
-compiler. In addition, in order to run a bytecode executable, you typically
-need to have OCaml installed on the system in question. That's not strictly
-required, though, since you can build a bytecode executable with an embedded
-runtime, using the `-custom` compiler flag.
+Aside from performance, executables generated by the two compilers
+have nearly identical behavior. There are a few things to be aware
+of. First, the bytecode compiler can be used on more architectures,
+and has some tools that are not available for native code. For
+example, the OCaml debugger only works with bytecode (although `gdb`,
+the GNU Debugger, works with some limitations on OCaml native-code
+applications). The bytecode compiler is also quicker than the
+native-code compiler. In addition, in order to run a bytecode
+executable, you typically need to have OCaml installed on the system
+in question. That's not strictly required, though, since you can build
+a bytecode executable with an embedded runtime, using the `-custom`
+compiler flag.
 
-As a general matter, production executables should usually be built using the
-native-code compiler, but it sometimes makes sense to use bytecode for
-development builds. And, of course, bytecode makes sense when targeting a
-platform not supported by the native-code compiler. We'll cover both
-compilers in more detail in
-[The Compiler Backend: Byte Code And Native Code](compiler-backend.html#the-compiler-backend-byte-code-and-native-code){data-type=xref}.
+As a general matter, production executables should usually be built
+using the native-code compiler, but it sometimes makes sense to use
+bytecode for development builds. And, of course, bytecode makes sense
+when targeting a platform not supported by the native-code
+compiler. We'll cover both compilers in more detail in [The Compiler
+Backend: Byte Code And Native
+Code](compiler-backend.html#the-compiler-backend-byte-code-and-native-code){data-type=xref}.
 :::
 
 
@@ -228,7 +247,7 @@ maintaining the association list used to represent the frequency counts. The
 key function, called `touch`, bumps the frequency count of a given line by
 one.
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-with-counter/counter.ml
+```ocaml file=examples/correct/freq-with-counter/counter.ml
 open Base
 
 let touch counts line =
@@ -247,7 +266,7 @@ capitalized. [modules/naming of]{.idx}
 
 We can now rewrite `freq.ml` to use `Counter`.
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-with-counter/freq.ml
+```ocaml file=examples/correct/freq-with-counter/freq.ml
 open Base
 open Stdio
 
@@ -264,7 +283,8 @@ let () =
 The resulting code can still be built with `dune`, which will discover
 dependencies and realize that `counter.ml` needs to be compiled.
 
-```sh dir=../../examples/code/files-modules-and-programs/freq-with-counter
+```sh dir=examples/correct/freq-with-counter
+$ dune build freq.exe
 ```
 
 ## Signatures and Abstract Types
@@ -296,7 +316,7 @@ val <identifier> : <type>
 
 Using this syntax, we can write the signature of `counter.ml` as follows.
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-with-sig/counter.mli
+```ocaml file=examples/correct/freq-with-sig/counter.mli
 open Base
 
 (** Bump the frequency count for the given string. *)
@@ -311,7 +331,7 @@ we'll need to make the type of frequency counts *abstract*. A type is
 abstract if its name is exposed in the interface, but its definition is not.
 Here's an abstract interface for `Counter`:
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-with-sig-abstract/counter.mli
+```ocaml file=examples/erroneous/freq-with-sig-abstract/counter.mli
 open Base
 
 (** A collection of string frequency counts *)
@@ -341,7 +361,7 @@ documentation. We'll discuss `odoc` more in
 
 Here's a rewrite of `counter.ml` to match the new `counter.mli`:
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-with-sig-abstract/counter.ml
+```ocaml file=examples/erroneous/freq-with-sig-abstract/counter.ml
 open Base
 
 type t = (string * int) list
@@ -361,11 +381,11 @@ let touch counts line =
 
 If we now try to compile `freq.ml`, we'll get the following error:
 
-```sh dir=../../examples/code/files-modules-and-programs/freq-with-sig-abstract
-$ dune build freq.bc
-      ocamlc .freq.eobjs/freq.{cmi,cmo,cmt} (exit 2)
-...
+```sh dir=examples/erroneous/freq-with-sig-abstract
+$ dune build freq.exe
 File "freq.ml", line 5, characters 53-66:
+5 |   In_channel.fold_lines In_channel.stdin ~init:[] ~f:Counter.touch
+                                                         ^^^^^^^^^^^^^
 Error: This expression has type Counter.t -> Base.string -> Counter.t
        but an expression was expected of type
          'a list -> Base.string -> 'a list
@@ -379,7 +399,7 @@ to fix `build_counts` to use `Counter.empty` instead of `[]` and to use
 `Counter.to_list` to convert the completed counts to an association list. The
 resulting implementation is shown below.
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-with-sig-abstract-fixed/freq.ml
+```ocaml file=examples/correct/freq-with-sig-abstract-fixed/freq.ml
 open Base
 open Stdio
 
@@ -396,14 +416,15 @@ let () =
 
 With this implementation, the build now succeeds!
 
-```sh dir=../../examples/code/files-modules-and-programs/freq-with-sig-abstract-fixed
+```sh dir=examples/correct/freq-with-sig-abstract-fixed
+$ dune build freq.exe
 ```
 
 Now we can turn to optimizing the implementation of `Counter`. Here's an
 alternate and far more efficient implementation, based on the `Map` data
 structure in `Core_kernel`.
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-fast/counter.ml
+```ocaml file=examples/correct/freq-fast/counter.ml
 open Base
 
 type t = (string,int,String.comparator_witness) Map.t
@@ -444,7 +465,7 @@ before and after the median instead. We'll use a custom type to represent the
 fact that there are two possible return values. Here's a possible
 implementation:
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-median/counter.ml,part=1
+```ocaml file=examples/correct/freq-median/counter.ml,part=1
 type median = | Median of string
               | Before_and_after of string * string
 
@@ -473,7 +494,7 @@ which functions are an example) and types have distinct namespaces, so
 there's no name clash here. Adding the following two lines to `counter.mli`
 does the trick.
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-median/counter.mli,part=1
+```ocaml file=examples/correct/freq-median/counter.mli,part=1
 (** Represents the median computed from a set of strings.  In the case where
     there is an even number of choices, the one before and after the median is
     returned.  *)
@@ -509,7 +530,7 @@ from the string type.
 Here's how you might create such an abstract type, within a submodule:
 [abstract types]{.idx}
 
-```ocaml file=../../examples/code/files-modules-and-programs/abstract_username.ml
+```ocaml file=examples/correct/abstract-username/abstract_username.ml
 open Base
 
 module Username : sig
@@ -544,7 +565,7 @@ own top-level `module type` declaration, making it possible to create
 multiple distinct types with the same underlying implementation in a
 lightweight way:
 
-```ocaml file=../../examples/code/files-modules-and-programs/session_info/session_info.ml
+```ocaml file=examples/erroneous/session_info/session_info.ml
 open Base
 module Time = Core_kernel.Time
 
@@ -571,7 +592,7 @@ type session_info = { user: Username.t;
                     }
 
 let sessions_have_same_user s1 s2 =
-  Hostname.(=) s1.user s2.host
+  Username.(=) s1.user s2.host
 ```
 
 The preceding code has a bug: it compares the username in one session to the
@@ -579,13 +600,13 @@ host in the other session, when it should be comparing the usernames in both
 cases. Because of how we defined our types, however, the compiler will flag
 this bug for us.
 
-```sh dir=../../examples/code/files-modules-and-programs/session_info,non-deterministic=output
+```sh dir=examples/erroneous/session_info
 $ dune build session_info.exe
-      ocamlc .session_info.eobjs/session_info.{cmi,cmo,cmt} (exit 2)
-(cd _build/default && /Users/thomas/git/rwo/book/_opam/bin/ocamlc.opt -w -40 -g -bin-annot -I /Users/thomas/git/rwo/book/_opam/lib/base -I /Users/thomas/git/rwo/book/_opam/lib/base/caml -I /Users/thomas/git/rwo/book/_opam/lib/base/md5 -I /Users/thomas/git/rwo/book/_opam/lib/base/shadow_stdlib -I /Users/thomas/git/rwo/book/_opam/lib/bin_prot -I /Users/thomas/git/rwo/book/_opam/lib/bin_prot/shape -I /Users/thomas/git/rwo/book/_opam/lib/core_kernel -I /Users/thomas/git/rwo/book/_opam/lib/core_kernel/base_for_tests -I /Users/thomas/git/rwo/book/_opam/lib/fieldslib -I /Users/thomas/git/rwo/book/_opam/lib/jane-street-headers -I /Users/thomas/git/rwo/book/_opam/lib/ppx_assert/runtime-lib -I /Users/thomas/git/rwo/book/_opam/lib/ppx_bench/runtime-lib -I /Users/thomas/git/rwo/book/_opam/lib/ppx_compare/runtime-lib -I /Users/thomas/git/rwo/book/_opam/lib/ppx_expect/collector -I /Users/thomas/git/rwo/book/_opam/lib/ppx_expect/common -I /Users/thomas/git/rwo/book/_opam/lib/ppx_expect/config -I /Users/thomas/git/rwo/book/_opam/lib/ppx_hash/runtime-lib -I /Users/thomas/git/rwo/book/_opam/lib/ppx_inline_test/config -I /Users/thomas/git/rwo/book/_opam/lib/ppx_inline_test/runtime-lib -I /Users/thomas/git/rwo/book/_opam/lib/sexplib -I /Users/thomas/git/rwo/book/_opam/lib/sexplib/0 -I /Users/thomas/git/rwo/book/_opam/lib/stdio -I /Users/thomas/git/rwo/book/_opam/lib/typerep -I /Users/thomas/git/rwo/book/_opam/lib/variantslib -no-alias-deps -I .session_info.eobjs -o .session_info.eobjs/session_info.cmo -c -impl session_info.ml)
-File "session_info.ml", line 27, characters 15-22:
-Error: This expression has type Username.t
-       but an expression was expected of type Hostname.t
+File "session_info.ml", line 27, characters 23-30:
+27 |   Username.(=) s1.user s2.host
+                            ^^^^^^^
+Error: This expression has type Hostname.t
+       but an expression was expected of type Username.t
 [1]
 ```
 
@@ -613,7 +634,7 @@ identifiers. Here's an example:
 # module M = struct let foo = 3 end
 module M : sig val foo : int end
 # foo
-Characters 0-3:
+Line 1, characters 1-4:
 Error: Unbound value foo
 # open M
 # foo
@@ -639,7 +660,7 @@ Here's some general advice on how to deal with `open`s: [local opens]{.idx}
 ```ocaml env=main
 # let average x y =
     let open Int64 in
-  x + y / of_int 2
+    (x + y) / of_int 2
 val average : int64 -> int64 -> int64 = <fun>
 ```
 
@@ -651,7 +672,7 @@ Here, `of_int` and the infix operators are the ones from the `Int64`
 
 ```ocaml env=main
 # let average x y =
-  Int64.(x + y / of_int 2)
+    Int64.((x + y) / of_int 2)
 val average : int64 -> int64 -> int64 = <fun>
 ```
 
@@ -659,7 +680,7 @@ val average : int64 -> int64 -> int64 = <fun>
   up on explicitness is to locally rebind the name of a module. So, when
   using the `Counter.median` type, instead of writing:
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-median/use_median_1.ml,part=1
+```ocaml file=examples/correct/freq-median/use_median_1.ml,part=1
 let print_median m =
   match m with
   | Counter.Median string -> printf "True median:\n   %s\n" string
@@ -669,7 +690,7 @@ let print_median m =
 
 you could write:
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-median/use_median_2.ml,part=1
+```ocaml file=examples/correct/freq-median/use_median_2.ml,part=1
 let print_median m =
   let module C = Counter in
   match m with
@@ -740,60 +761,61 @@ If we'd used `open`, we'd have gotten a quite different result:
 module Extended_interval :
   sig val contains : Extended_interval.t -> int -> bool end
 # Extended_interval.contains (Extended_interval.create 3 10) 4
-Characters 28-52:
+Line 1, characters 29-53:
 Error: Unbound value Extended_interval.create
 ```
 
-To consider a more realistic example, imagine you wanted to build an extended
-version of the `List` module, where you've added some functionality not
-present in the module as distributed in `Base`. That's a job for `include`.
+To consider a more realistic example, imagine you wanted to build an
+extended version of the `Option` module, where you've added some
+functionality not present in the module as distributed in
+`Base`. That's a job for `include`.
 
-```ocaml file=../../examples/code/files-modules-and-programs/ext_list.ml
+```ocaml file=examples/correct/ext-option/ext_option.ml
 open Base
 
 (* The new function we're going to add *)
-let rec intersperse list el =
-  match list with
-  | [] | [ _ ]   -> list
-  | x :: y :: tl -> x :: el :: intersperse (y::tl) el
+let apply f_opt x =
+  match f_opt with
+  | None -> None
+  | Some f -> Some (f x)
 
 (* The remainder of the list module *)
-include List
+include Option
 ```
 
-Now, how do we write an interface for this new module? It turns out that
-`include` works on signatures as well, so we can pull essentially the same
-trick to write our `mli`. The only issue is that we need to get our hands on
-the signature for the `List` module. This can be done using `module type of`,
-which computes a signature from a module:
+Now, how do we write an interface for this new module? It turns out
+that `include` works on signatures as well, so we can pull essentially
+the same trick to write our `mli`. The only issue is that we need to
+get our hands on the signature for the `Option` module. This can be
+done using `module type of`, which computes a signature from a module:
 
-```ocaml file=../../examples/code/files-modules-and-programs/ext_list.mli
+```ocaml file=examples/correct/ext-option/ext_option.mli
 open Base
 
-(* Include the interface of the list module from Core *)
-include (module type of List)
+(* Include the interface of the option module from Base *)
+include (module type of Option)
 
 (* Signature of function we're adding *)
-val intersperse : 'a list -> 'a -> 'a list
+val apply : ('a -> 'b) t -> 'a -> 'b t
 ```
 
 Note that the order of declarations in the `mli` does not need to match the
 order of declarations in the `ml`. The order of declarations in the `ml`
 mostly matters insofar as it affects which values are shadowed. If we wanted
-to replace a function in `List` with a new function of the same name, the
+to replace a function in `Option` with a new function of the same name, the
 declaration of that function in the `ml` would have to come after the
-`include List` declaration.
+`include Option` declaration.
 
-We can now use `Ext_list` as a replacement for `List`. If we want to use
-`Ext_list` in preference to `List` in our project, we can create a file of
+We can now use `Ext_option` as a replacement for `Option`. If we want to use
+`Ext_option` in preference to `Option` in our project, we can create a file of
 common definitions:
 
-```ocaml file=../../examples/code/files-modules-and-programs/common.ml
-module List = Ext_list
+```ocaml file=examples/correct/ext-option/common.ml
+module Option = Ext_option
 ```
 
 And if we then put `open Common` after `open Base` at the top of each file in
-our project, then references to `List` will automatically go to `Ext_list`
+our project, then references to `Option` will automatically go to `Ext_option`
 instead.
 
 ## Common Errors with Modules
@@ -810,49 +832,50 @@ replace the `val` declaration in `counter.mli` by swapping the types of the
 first two arguments: [errors/module type mismatches]{.idx}[type
 mismatches]{.idx}[modules/type mismatches in]{.idx}
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-with-sig-mismatch/counter.mli,part=1
+```ocaml file=examples/erroneous/freq-with-sig-mismatch/counter.mli,part=1
 (** Bump the frequency count for the given string. *)
-val touch : t -> string -> t
+val touch : string -> t -> t
 ```
 
 and we try to compile, we'll get the following error.
 
-```sh dir=../../examples/code/files-modules-and-programs/freq-with-sig-mismatch,non-deterministic=output
-$ dune build freq.bc
-      ocamlc .freq.eobjs/counter.{cmo,cmt} (exit 2)
-(cd _build/default && /Users/thomas/git/rwo/book/_opam/bin/ocamlc.opt -w -40 -g -bin-annot -I /Users/thomas/git/rwo/book/_opam/lib/base -I /Users/thomas/git/rwo/book/_opam/lib/base/caml -I /Users/thomas/git/rwo/book/_opam/lib/base/shadow_stdlib -I /Users/thomas/git/rwo/book/_opam/lib/sexplib -I /Users/thomas/git/rwo/book/_opam/lib/sexplib/0 -I /Users/thomas/git/rwo/book/_opam/lib/stdio -no-alias-deps -I .freq.eobjs -o .freq.eobjs/counter.cmo -c -impl counter.ml)
+```sh dir=examples/erroneous/freq-with-sig-mismatch
+$ dune build freq.exe
 File "counter.ml", line 1:
 Error: The implementation counter.ml
-       does not match the interface .freq.eobjs/counter.cmi:
+       does not match the interface .freq.eobjs/byte/dune__exe__Counter.cmi:
        Values do not match:
          val touch :
-           ('a, Base__Int.t, 'b) Base.Map.t ->
-           'a -> ('a, Base__Int.t, 'b) Base.Map.t
+           ('a, int, 'b) Base.Map.t -> 'a -> ('a, int, 'b) Base.Map.t
        is not included in
-         val touch : t -> Base.string -> t
-       File "counter.mli", line 11, characters 0-28: Expected declaration
+         val touch : string -> t -> t
+       File "counter.mli", line 16, characters 0-28: Expected declaration
        File "counter.ml", line 9, characters 4-9: Actual declaration
 [1]
 ```
 
 ### Missing Definitions
 
-We might decide that we want a new function in `Counter` for pulling out the
-frequency count of a given string. We can update the `mli` by adding the
-following line: [errors/missing module definitions]{.idx}[modules/missing
-definitions in]{.idx}
+We might decide that we want a new function in `Counter` for pulling
+out the frequency count of a given string.  We could add that to the
+`mli` by adding the following line. [errors/missing module
+definitions]{.idx}[modules/missing definitions in]{.idx}
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-with-missing-def/counter.mli,part=1
+```ocaml file=examples/erroneous/freq-with-missing-def/counter.mli,part=1
+(** Returns the frequency count for the given string *)
 val count : t -> string -> int
 ```
 
 Now if we try to compile without actually adding the implementation, we'll
 get this error.
 
-```sh dir=../../examples/code/files-modules-and-programs/freq-with-missing-def
-$ dune build counter.bc
-Don't know how to build counter.bc
-Hint: did you mean counter.ml?
+```sh dir=examples/erroneous/freq-with-missing-def
+$ dune build freq.exe
+File "counter.ml", line 1:
+Error: The implementation counter.ml
+       does not match the interface .freq.eobjs/byte/dune__exe__Counter.cmi:
+       The value `count' is required but not provided
+       File "counter.mli", line 15, characters 0-30: Expected declaration
 [1]
 ```
 
@@ -867,7 +890,7 @@ definition of `median` in the implementation listing those options in a
 different order: [type definition mismatches]{.idx}[errors/module type
 definition mismatches]{.idx}[modules/type definition mismatches]{.idx}
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-with-type-mismatch/counter.mli,part=1
+```ocaml file=examples/erroneous/freq-with-type-mismatch/counter.mli,part=1
 (** Represents the median computed from a set of strings.  In the case where
     there is an even number of choices, the one before and after the median is
     returned.  *)
@@ -879,20 +902,18 @@ val median : t -> median
 
 will lead to a compilation error.
 
-```sh dir=../../examples/code/files-modules-and-programs/freq-with-type-mismatch
-$ dune build freq.bc
-      ocamlc .freq.eobjs/counter.{cmo,cmt} (exit 2)
-...
+```sh dir=examples/erroneous/freq-with-type-mismatch
+$ dune build freq.exe
 File "counter.ml", line 1:
 Error: The implementation counter.ml
-       does not match the interface .freq.eobjs/counter.cmi:
+       does not match the interface .freq.eobjs/byte/dune__exe__Counter.cmi:
        Type declarations do not match:
          type median = Median of string | Before_and_after of string * string
        is not included in
          type median = Before_and_after of string * string | Median of string
-       File "counter.mli", line 20, characters 0-84: Expected declaration
-       File "counter.ml", line 18, characters 0-84: Actual declaration
-       Fields number 1 have different names, Median and Before_and_after.
+       Constructors number 1 have different names, Median and Before_and_after.
+       File "counter.mli", lines 21-22, characters 0-32: Expected declaration
+       File "counter.ml", lines 18-19, characters 0-51: Actual declaration
 [1]
 ```
 
@@ -921,18 +942,18 @@ The simplest example of a forbidden circular reference is a module referring
 to its own module name. So, if we tried to add a reference to `Counter` from
 within `counter.ml`.
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-cyclic1/counter.ml,part=1
+```ocaml file=examples/erroneous/freq-cyclic1/counter.ml,part=1
 let singleton l = Counter.touch Counter.empty
 ```
 
 we'll see this error when we try to build:
 
-```sh dir=../../examples/code/files-modules-and-programs/freq-cyclic1,non-deterministic=output
-$ dune build freq.bc
-      ocamlc .freq.eobjs/counter.{cmi,cmo,cmt} (exit 2)
-(cd _build/default && /Users/thomas/git/rwo/book/_opam/bin/ocamlc.opt -w -40 -g -bin-annot -I /Users/thomas/git/rwo/book/_opam/lib/base -I /Users/thomas/git/rwo/book/_opam/lib/base/caml -I /Users/thomas/git/rwo/book/_opam/lib/base/shadow_stdlib -I /Users/thomas/git/rwo/book/_opam/lib/sexplib -I /Users/thomas/git/rwo/book/_opam/lib/sexplib/0 -I /Users/thomas/git/rwo/book/_opam/lib/stdio -no-alias-deps -I .freq.eobjs -o .freq.eobjs/counter.cmo -c -impl counter.ml)
+```sh dir=examples/erroneous/freq-cyclic1
+$ dune build freq.exe
 File "counter.ml", line 18, characters 18-31:
-Error: Unbound module Counter
+18 | let singleton l = Counter.touch Counter.empty
+                       ^^^^^^^^^^^^^
+Error: The module Counter is an alias for module Dune__exe__Counter, which is missing
 [1]
 ```
 
@@ -940,19 +961,19 @@ The problem manifests in a different way if we create cyclic references
 between files. We could create such a situation by adding a reference to
 `Freq` from `counter.ml`, e.g., by adding the following line.
 
-```ocaml file=../../examples/code/files-modules-and-programs/freq-cyclic2/counter.ml,part=1
+```ocaml file=examples/erroneous/freq-cyclic2/counter.ml,part=1
 let _build_counts = Freq.build_counts
 ```
 
 In this case, `dune` will notice the error and complain explicitly about
 the cycle:
 
-```sh dir=../../examples/code/files-modules-and-programs/freq-cyclic2
-$ dune build freq.bc
-Dependency cycle between the following files:
-    _build/default/.freq.eobjs/counter.ml.all-deps
---> _build/default/.freq.eobjs/freq.ml.all-deps
---> _build/default/.freq.eobjs/counter.ml.all-deps
+```sh dir=examples/erroneous/freq-cyclic2,non-deterministic=output
+$ dune build freq.exe
+Error: Dependency cycle between the following files:
+   _build/default/.freq.eobjs/freq.impl.all-deps
+-> _build/default/.freq.eobjs/counter.impl.all-deps
+-> _build/default/.freq.eobjs/freq.impl.all-deps
 [1]
 ```
 
@@ -1011,13 +1032,14 @@ labeled arguments (discussed in
 [Labeled Arguments](variables-and-functions.html#labeled-arguments){data-type=xref}),
 which act as documentation that is available at the call site.
 
-You can also improve readability simply by choosing good names for your
-functions, variant tags and record fields. Good names aren't always long, to
-be clear. If you wanted to write an anonymous function for doubling a number:
-`(fun x -> x * 2)`, a short variable name like `x` is best. A good rule of
-thumb is that names that have a small scope should be short, whereas names
-that have a large scope, like the name of a function in an a module
-interface, should be longer and more explicit.
+You can also improve readability simply by choosing good names for
+your functions, variant tags and record fields. Good names aren't
+always long, to be clear. If you wanted to write an anonymous function
+for doubling a number: `(fun x -> x * 2)`, a short variable name like
+`x` is best. A good rule of thumb is that names that have a small
+scope should be short, whereas names that have a large scope, like the
+name of a function in a module interface, should be longer and more
+explicit.
 
 There is of course a tradeoff here, in that making your APIs more explicit
 tends to make them more verbose as well. Another useful rule of thumb is that

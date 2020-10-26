@@ -1,33 +1,34 @@
 # First-Class Modules
 
-You can think of OCaml as being broken up into two parts: a core language
-that is concerned with values and types, and a module language that is
-concerned with modules and module signatures. These sublanguages are
-stratified, in that modules can contain types and values, but ordinary values
-can't contain modules or module types. That means you can't do things like
-define a variable whose value is a module, or a function that takes a module
-as an argument. [modules/first-class modules]{.idx #MODfirst}
+You can think of OCaml as being broken up into two parts: a core
+language that is concerned with values and types, and a module
+language that is concerned with modules and module signatures. These
+sublanguages are stratified, in that modules can contain types and
+values, but ordinary values can't contain modules or module
+types. That means you can't do things like define a variable whose
+value is a module, or a function that takes a module as an
+argument. [modules/first-class modules]{.idx #MODfirst}
 
 OCaml provides a way around this stratification in the form of
-*first-class modules*. First-class modules are ordinary values that can be
-created from and converted back to regular modules. [first-class
-modules/working with]{.idx #FCMwork}
+*first-class modules*. First-class modules are ordinary values that
+can be created from and converted back to regular
+modules. [first-class modules/working with]{.idx #FCMwork}
 
-First-class modules are a sophisticated technique, and you'll need to get
-comfortable with some advanced aspects of the language to use them
-effectively. But it's worth learning, because letting modules into the core
-language is quite powerful, increasing the range of what you can express and
-making it easier to build flexible and modular
-<span class="keep-together">systems</span>.
+First-class modules are a sophisticated technique, and you'll need to
+get comfortable with some advanced aspects of the language to use them
+effectively. But it's worth learning, because letting modules into the
+core language is quite powerful, increasing the range of what you can
+express and making it easier to build flexible and modular <span
+class="keep-together">systems</span>.
 
 ## Working with First-Class Modules
 
-We'll start out by covering the basic mechanics of first-class modules by
-working through some toy examples. We'll get to more realistic examples in
-the next section.
+We'll start out by covering the basic mechanics of first-class modules
+by working through some toy examples. We'll get to more realistic
+examples in the next section.
 
-In that light, consider the following signature of a module with a single
-integer variable:
+In that light, consider the following signature of a module with a
+single integer variable:
 
 ```ocaml env=main
 # open Base
@@ -172,14 +173,17 @@ abstract, so that we can no longer recover the fact that the type in question
 is `int`.
 
 ```ocaml env=main
-# let (module Bumpable) = int_bumper in Bumpable.bump 3
-Characters 52-53:
+# let (module Bumper) = int_bumper in
+  Bumper.bump 3
+Line 2, characters 15-16:
 Error: This expression has type int but an expression was expected of type
-         Bumpable.t
+         Bumper.t
 ```
 
-To make `int_bumper` usable, we need to expose the type, which we can do as
-follows:
+To make `int_bumper` usable, we need to expose that the type
+`Bumpable.t` is actually equal to `int`.  Below we'll do that for
+`int_bumper`, and also provide the corresponding definition for
+`float_bumper`.
 
 ```ocaml env=main
 # let int_bumper = (module Int_bumper : Bumpable with type t = int)
@@ -188,31 +192,32 @@ val int_bumper : (module Bumpable with type t = int) = <module>
 val float_bumper : (module Bumpable with type t = float) = <module>
 ```
 
-The sharing constraints we've added above make the resulting first-class
-modules <span class="keep-together">polymorphic</span> in the type `t`. As a
-result, we can now use these first-class modules on values of the matching
-type:
+The sharing constraints we've added above make the resulting
+first-class modules polymorphic in the type `t`. As a result, we can
+now use these first-class modules on values of the matching type:
 
 ```ocaml env=main
-# let (module Bumpable) = int_bumper in Bumpable.bump 3
+# let (module Bumper) = int_bumper in
+  Bumper.bump 3
 - : int = 4
-# let (module Bumpable) = float_bumper in Bumpable.bump 3.5
+# let (module Bumper) = float_bumper in
+  Bumper.bump 3.5
 - : float = 4.5
 ```
 
 We can also write functions that use such first-class modules
-polymorphically. The following function takes two arguments: a `Bumpable`
-module and a list of elements of the same type as the type `t` of the module:
-[polymorphism/in first-class modules]{.idx}[first-class modules/polymorphism
-in]{.idx}
+polymorphically. The following function takes two arguments: a
+`Bumpable` module and a list of elements of the same type as the type
+`t` of the module: [polymorphism/in first-class
+modules]{.idx}[first-class modules/polymorphism in]{.idx}
 
 ```ocaml env=main
 # let bump_list
         (type a)
-        (module B : Bumpable with type t = a)
+        (module Bumper : Bumpable with type t = a)
         (l: a list)
     =
-    List.map ~f:B.bump l
+    List.map ~f:Bumper.bump l
 val bump_list : (module Bumpable with type t = 'a) -> 'a list -> 'a list =
   <fun>
 ```
@@ -241,7 +246,7 @@ connect the types associated with a first-class module to the types of other
 values you're working with.
 
 ::: {data-type=note}
-### More on Locally Abstract Types
+##### More on Locally Abstract Types
 
 One of the key properties of locally abstract types is that they're dealt
 with as abstract types in the function they're defined within, but are
@@ -262,7 +267,7 @@ concrete type, say, `int`, then the compiler will complain:
 
 ```ocaml env=main
 # let double_int (type a) (x:a) = x + x
-Characters 32-33:
+Line 1, characters 33-34:
 Error: This expression has type a but an expression was expected of type int
 ```
 
@@ -300,18 +305,34 @@ the same approach to construct a local module to be fed to a functor.
 
 ## Example: A Query-Handling Framework
 
-Now let's look at first-class modules in the context of a more complete and
-realistic example. In particular, consider the following signature for a
-module that implements a system for responding to user-generated queries.
-[query-handlers/and first-class modules]{.idx}[first-class
-modules/query-handling framework]{.idx #FCMquery}
+Now let's look at first-class modules in the context of a more
+complete and realistic example.  In particular, we're going to show to
+implement a system for responding to user-generated queries.
+
+This system will use *s-expressions* for formatting queries and
+responses, as well as the configuration for the query handler.
+S-expressions are a simple, flexible, and human-readable serialization
+format commonly used in `Base` and related libraries.  For now, it's
+enough to think of them as balanced parenthetical expressions whose
+atomic values are strings, e.g., `(this (is an) (s expression))`.
+S-expressions are covered in more detail in [Data Serialization With S
+Expressions](data-serialization.html#data-serialization-with-s-expressions){data-type=xref}.
+[s-expressions]{.idx}
+
+The following signature for a module that implements a system for
+responding to user-generated queries.  Here, we use Base's `Sexp`
+module for handling s-expressions.
+[query-handlers/and first-class modules]{.idx}
 
 ```ocaml env=query_handler
+# #require "ppx_jane"
 # module type Query_handler = sig
 
-    (** Configuration for a query handler.  Note that this can be
-        converted to and from an s-expression *)
-    type config [@@deriving sexp]
+    (** Configuration for a query handler *)
+    type config
+
+    val sexp_of_config : config -> Sexp.t
+    val config_of_sexp : Sexp.t -> config
 
     (** The name of the query-handling service *)
     val name : string
@@ -329,8 +350,8 @@ modules/query-handling framework]{.idx #FCMquery}
 module type Query_handler =
   sig
     type config
-    val config_of_sexp : Sexp.t -> config
     val sexp_of_config : config -> Sexp.t
+    val config_of_sexp : Sexp.t -> config
     val name : string
     type t
     val create : config -> t
@@ -338,27 +359,20 @@ module type Query_handler =
   end
 ```
 
-Here, we used s-expressions as the format for queries and responses, as well
-as the configuration for the query handler. S-expressions are a simple,
-flexible, and human-readable serialization format commonly used in Core. For
-now, it's enough to think of them as balanced parenthetical expressions whose
-atomic values are strings, e.g.,
-`(this (is an) (s expression))`.[s-expressions/in queries and
-responses]{.idx}
-
-In addition, we use the `ppx_sexp_conv` syntax extension which interprets the
-`[@@deriving sexp]` annotation. When `ppx_sexp_conv` sees `[@@deriving sexp]`
-attached to a signature, it replaces it with declarations of s-expression
-converters, for example:[sexp declaration]{.idx}
+Implementing s-expression converters by hand is tedious and
+error-prone, but happily, we have an alternative.  `ppx_sexp_conv` is
+a syntax extension which can be used to automatically generate
+s-expression converters based on their type definition.  We'll enable
+`ppx_sexp_conv` by enabling `ppx_jane`, which brings in a larger
+family of syntax extensions.
 
 ```ocaml env=query_handler
-# module type M = sig type t [@@deriving sexp] end
-module type M =
-  sig type t val t_of_sexp : Sexp.t -> t val sexp_of_t : t -> Sexp.t end
+# #require "ppx_jane"
 ```
 
-In a module, `[@@deriving sexp]` adds the implementation of those functions.
-Thus, we can write:
+Here's an example of the extension in action.  Note that we need the
+annotation `[@@deriving sexp]` to kick off the generation of the
+converters.
 
 ```ocaml env=query_handler
 # type u = { a: int; b: float } [@@deriving sexp]
@@ -371,8 +385,14 @@ val sexp_of_u : u -> Sexp.t = <fun>
 - : u = {a = 43; b = 3.4}
 ```
 
-This is all described in more detail in
-[Data Serialization With S Expressions](data-serialization.html#data-serialization-with-s-expressions){data-type=xref}.
+Notably, the same annotations can be attached within a signature to
+add the appropriate type signature.
+
+```ocaml env=query_handler
+# module type M = sig type t [@@deriving sexp] end
+module type M =
+  sig type t val t_of_sexp : Sexp.t -> t val sexp_of_t : t -> Sexp.t end
+```
 
 ### Implementing a Query Handler
 
@@ -465,7 +485,7 @@ module List_dir :
 Again, we can create an instance of this query handler and interact with it
 directly:
 
-```ocaml env=query_handler,non-deterministic
+```ocaml env=query_handler,non-deterministic=command
 # let list_dir = List_dir.create "/var"
 val list_dir : List_dir.t = {List_dir.cwd = "/var"}
 # List_dir.eval list_dir (sexp_of_string ".")
@@ -560,7 +580,7 @@ instances and constructs a dispatch table from it:
     table
 val build_dispatch_table :
   (module Query_handler_instance) list ->
-  (string, (module Query_handler_instance)) Core_kernel.Hashtbl.t = <fun>
+  (string, (module Query_handler_instance)) Hashtbl.Poly.t = <fun>
 ```
 
 Now, we need a function that dispatches to a handler using a dispatch table:
@@ -579,7 +599,7 @@ Now, we need a function that dispatches to a handler using a dispatch table:
     | _ ->
       Or_error.error_string "malformed query"
 val dispatch :
-  (string, (module Query_handler_instance)) Core_kernel.Hashtbl.t ->
+  (string, (module Query_handler_instance)) Hashtbl.Poly.t ->
   Sexp.t -> Sexp.t Or_error.t = <fun>
 ```
 
@@ -621,8 +641,7 @@ interface:
     | `Continue msg ->
       printf "%s\n%!" msg;
       cli dispatch_table
-val cli :
-  (string, (module Query_handler_instance)) Core_kernel.Hashtbl.t -> unit =
+val cli : (string, (module Query_handler_instance)) Hashtbl.Poly.t -> unit =
   <fun>
 ```
 
@@ -630,7 +649,7 @@ We can most effectively run this command-line interface from a standalone
 program, which we can do by putting the above code in a file along with
 following command to launch the interface:
 
-```ocaml file=../../examples/code/fcm/query_handler_loader/query_handler.ml,part=1
+```ocaml file=examples/query_handler_loader/query_handler.ml,part=1
 let () =
   cli (build_dispatch_table [unique_instance; list_dir_instance])
 ```
@@ -663,7 +682,7 @@ active query handlers. The module in question will be called `Loader`, and
 its configuration is a list of known `Query_handler` modules. Here are the
 basic types:
 
-```ocaml file=../../examples/code/fcm/query_handler_loader/query_handler_core.ml,part=1
+```ocaml file=examples/query_handler_loader/query_handler_core.ml,part=1
 module Loader = struct
   type config = (module Query_handler) list sexp_opaque
   [@@deriving sexp]
@@ -685,7 +704,7 @@ Next, we'll need a function for creating a `Loader.t`. This function requires
 the list of known query handler modules. Note that the table of active
 modules starts out as empty:
 
-```ocaml file=../../examples/code/fcm/query_handler_loader/query_handler_core.ml,part=2
+```ocaml file=examples/query_handler_loader/query_handler_core.ml,part=2
 let create known_list =
     let active = String.Table.create () in
     let known  = String.Table.create () in
@@ -702,7 +721,7 @@ configuration for instantiating that handler in the form of an s-expression.
 These are used for creating a first-class module of type
 `(module Query_handler_instance)`, which is then added to the active table:
 
-```ocaml file=../../examples/code/fcm/query_handler_loader/query_handler_core.ml,part=3
+```ocaml file=examples/query_handler_loader/query_handler_core.ml,part=3
 let load t handler_name config =
     if Hashtbl.mem t.active handler_name then
       Or_error.error "Can't re-register an active handler"
@@ -726,7 +745,7 @@ Since the `load` function will refuse to `load` an already active handler, we
 also need the ability to unload a handler. Note that the handler explicitly
 refuses to unload itself:
 
-```ocaml file=../../examples/code/fcm/query_handler_loader/query_handler_core.ml,part=4
+```ocaml file=examples/query_handler_loader/query_handler_core.ml,part=4
 let unload t handler_name =
     if not (Hashtbl.mem t.active handler_name) then
       Or_error.error "Handler not active" handler_name String.sexp_of_t
@@ -743,7 +762,7 @@ query <span class="keep-together">interface</span> presented to the user.
 We'll do this by creating a variant type, and using the s-expression
 converter generated for that type to parse the query from the user:
 
-```ocaml file=../../examples/code/fcm/query_handler_loader/query_handler_core.ml,part=5
+```ocaml file=examples/query_handler_loader/query_handler_core.ml,part=5
 type request =
     | Load of string * Sexp.t
     | Unload of string
@@ -760,7 +779,7 @@ strings to an s-expression, as described in
 
 This function ends the definition of the `Loader` module:
 
-```ocaml file=../../examples/code/fcm/query_handler_loader/query_handler_core.ml,part=6
+```ocaml file=examples/query_handler_loader/query_handler_core.ml,part=6
 let eval t sexp =
     match Or_error.try_with (fun () -> request_of_sexp sexp) with
     | Error _ as err -> err
@@ -780,7 +799,7 @@ first create an instance of the loader query handler and then add that
 instance to the loader's active table. We can then just launch the
 command-line interface, passing it the active table:
 
-```ocaml file=../../examples/code/fcm/query_handler_loader/query_handler_loader.ml,part=1
+```ocaml file=examples/query_handler_loader/query_handler_loader.ml,part=1
 let () =
   let loader = Loader.create [(module Unique); (module List_dir)] in
   let loader_instance =
@@ -805,7 +824,7 @@ Now build this into a command-line interface to experiment with it:
 
 
 
-```sh dir=../../examples/code/fcm/query_handler_loader
+```sh dir=examples/query_handler_loader
 ```
 
 The resulting command-line interface behaves much as you'd expect, starting

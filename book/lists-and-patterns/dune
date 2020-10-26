@@ -1,9 +1,8 @@
-(rule (with-stdout-to dune.gen
-  (run mdx rule --direction=to-ml README.md --prelude=prelude.ml)))
-
-(alias
- (name   runtest)
- (deps   README.md)
- (action (diff dune.inc dune.gen)))
-
-(include dune.inc)
+(mdx
+ (files README.md)
+ (packages
+  core
+  core_bench
+  mdx
+  ppx_jane)
+ (preludes prelude.ml))

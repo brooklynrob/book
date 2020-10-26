@@ -74,8 +74,7 @@ to find a key in one table isn't a failure of any sort:
       | _ -> mismatches
     )
 val find_mismatches :
-  ('a, int) Core_kernel.Hashtbl.t ->
-  ('a, int) Core_kernel.Hashtbl.t -> 'a list = <fun>
+  ('a, int) Hashtbl.Poly.t -> ('a, int) Hashtbl.Poly.t -> 'a list = <fun>
 ```
 
 The use of options to encode errors underlines the fact that it's not clear
@@ -94,7 +93,7 @@ anything about the nature of the error.
 `Result.t` is meant to address this deficiency. The type is defined as
 follows:[Result.t option]{.idx}
 
-```ocaml file=../../examples/code/error-handling/result.mli
+```ocaml skip
 module Result : sig
    type ('a,'b) t = | Ok of 'a
                     | Error of 'b
@@ -176,13 +175,18 @@ package/sexp converter]{.idx}
 Note that the character isn't actually serialized into an s-expression until
 the error is printed out.
 
-We're not restricted to doing this kind of error reporting with built-in
-types. This will be discussed in more detail in
-[Data Serialization With S Expressions](data-serialization.html#data-serialization-with-s-expressions){data-type=xref},
+We're not restricted to doing this kind of error reporting with
+built-in types. This will be discussed in more detail in [Data
+Serialization With S
+Expressions](data-serialization.html#data-serialization-with-s-expressions){data-type=xref},
 but Sexplib comes with a language extension that can autogenerate sexp
-converters for newly generated types:
+converters for newly generated types.  We can enable it explicitly in
+the toplevel with a `#require` statement.
 
+<!-- FIXME: we should use ppx_sexp_value instead of ppx_jane, but that -->
+<!-- doesn't work here for some reason. -->
 ```ocaml env=main
+# #require "ppx_jane"
 # let custom_to_sexp = [%sexp_of: float * string list * int]
 val custom_to_sexp : float * string list * int -> Sexp.t = <fun>
 # custom_to_sexp (3.5, ["a";"b";"c"], 6034)
@@ -194,7 +198,7 @@ We can use this same idiom for generating an error:
 ```ocaml env=main
 # Error.create "Something went terribly wrong"
     (3.5, ["a";"b";"c"], 6034)
-  [%sexp_of: float * string list * int]
+    [%sexp_of: float * string list * int]
 - : Error.t = ("Something went terribly wrong" (3.5 (a b c) 6034))
 ```
 
@@ -218,12 +222,13 @@ it is, after `option`, the most common way of returning errors in Base.
 
 ### `bind` and Other Error Handling Idioms
 
-As you write more error handling code in OCaml, you'll discover that certain
-patterns start to emerge. A number of these common patterns have been
-codified by functions in modules like `Option` and `Result`. One particularly
-useful pattern is built around the function `bind`, which is both an ordinary
-function and an infix operator `>>=`. Here's the definition of `bind` for
-options: [bind function]{.idx}
+As you write more error handling code in OCaml, you'll discover that
+certain patterns start to emerge. A number of these common patterns
+have been codified by functions in modules like `Option` and
+`Result`. One particularly useful pattern is built around the function
+`bind`, which is both an ordinary function and an infix operator
+`>>=`. Here's the definition of `bind` for options: [bind
+function]{.idx}
 
 ```ocaml env=main
 # let bind option f =
@@ -234,10 +239,10 @@ val bind : 'a option -> ('a -> 'b option) -> 'b option = <fun>
 ```
 
 As you can see, `bind None f` returns `None` without calling `f`, and
-`bind (Some x) f` returns `f x`. `bind` can be used as a way of sequencing
-together error-producing functions so that the first one to produce an error
-terminates the computation. Here's a rewrite of `compute_bounds` to use a
-nested series of `bind`s:
+`bind (Some x) f` returns `f x`. `bind` can be used as a way of
+sequencing together error-producing functions so that the first one to
+produce an error terminates the computation. Here's a rewrite of
+`compute_bounds` to use a nested series of `bind`s:
 
 ```ocaml env=main
 # let compute_bounds ~compare list =
@@ -249,13 +254,14 @@ val compute_bounds : compare:('a -> 'a -> int) -> 'a list -> ('a * 'a) option =
   <fun>
 ```
 
-The preceding code is a little bit hard to swallow, however, on a syntactic
-level. We can make it easier to read and drop some of the parentheses, by
-using the infix operator form of `bind`, which we get access to by locally
-opening `Option.Monad_infix`. The module is called `Monad_infix` because the
-`bind` operator is part of a subinterface called `Monad`, which we'll see
-again in
-[Concurrent Programming With Async](concurrent-programming.html#concurrent-programming-with-async){data-type=xref}.
+The preceding code is a little bit hard to swallow, however, on a
+syntactic level. We can make it easier to read and drop some of the
+parentheses, by using the infix operator form of `bind`, which we get
+access to by locally opening `Option.Monad_infix`. The module is
+called `Monad_infix` because the `bind` operator is part of a
+subinterface called `Monad`, which we'll see again in [Concurrent
+Programming With
+Async](concurrent-programming.html#concurrent-programming-with-async){data-type=xref}.
 
 ```ocaml env=main
 # let compute_bounds ~compare list =
@@ -268,20 +274,22 @@ val compute_bounds : compare:('a -> 'a -> int) -> 'a list -> ('a * 'a) option =
   <fun>
 ```
 
-This use of `bind` isn't really materially better than the one we started
-with, and indeed, for small examples like this, direct matching of options is
-generally better than using `bind`. But for large, complex examples with many
-stages of error handling, the `bind` idiom becomes clearer and easier to
-manage.
+This use of `bind` isn't really materially better than the one we
+started with, and indeed, for small examples like this, direct
+matching of options is generally better than using `bind`. But for
+large, complex examples with many stages of error handling, the `bind`
+idiom becomes clearer and easier to manage.
 
 ::: {data-type=note}
-#### Monads and `Let_syntax`
+##### Monads and `Let_syntax`
 
-We can make this look a little bit more ordinary by using a syntax extension
-that's designed specifically for monadic binds, called `Let_syntax`. Here's
-what the above example looks like using this extension.
+We can make this look a little bit more ordinary by using a syntax
+extension that's designed specifically for monadic binds, called
+`Let_syntax`. Here's what the above example looks like using this
+extension.
 
 ```ocaml env=main
+# #require "ppx_let"
 # let compute_bounds ~compare list =
     let open Option.Let_syntax in
     let sorted = List.sort ~compare list in
@@ -291,6 +299,8 @@ what the above example looks like using this extension.
 val compute_bounds : compare:('a -> 'a -> int) -> 'a list -> ('a * 'a) option =
   <fun>
 ```
+
+Note that we needed a `#require` statement to enable the extension.
 
 To understand what's going on here, you need to know that
 `let%bind x = some_expr in some_other_expr` is rewritten into
@@ -377,7 +387,7 @@ values:
 val exceptions : exn list = [Division_by_zero; Key_not_found("b")]
 # List.filter exceptions  ~f:(function
     | Key_not_found _ -> true
-  | _ -> false)
+    | _ -> false)
 - : exn list = [Key_not_found("b")]
 ```
 
@@ -440,7 +450,7 @@ type system will let us throw an exception anywhere in a program. [sexp
 declaration]{.idx}[exceptions/textual representation of]{.idx}
 
 ::: {.allow_break data-type=note}
-### Declaring Exceptions Using `[@@deriving sexp]`
+##### Declaring Exceptions Using `[@@deriving sexp]`
 
 OCaml can't always generate a useful textual representation of an exception.
 For example:
@@ -538,7 +548,7 @@ the `assert`:
     loop xs ys
 val merge_lists : 'a list -> 'b list -> f:('a -> 'b -> 'c) -> 'c list = <fun>
 # merge_lists [1;2;3] [-1] ~f:(+)
-Exception: "Assert_failure //toplevel//:6:14".
+Exception: "Assert_failure //toplevel//:6:14"
 ```
 
 This shows what's special about `assert`: it captures the line number and
@@ -651,7 +661,7 @@ detection]{.idx}
       let data = find_exn alist key in
       compute_weight data
     with
-  Key_not_found _ -> 0.
+    Key_not_found _ -> 0.
 val lookup_weight :
   compute_weight:('a -> float) -> (string * 'a) list -> string -> float =
   <fun>
@@ -665,7 +675,7 @@ found, then a weight of `0.` should be returned.
 The use of exceptions in this code, however, presents some problems. In
 particular, what happens if `compute_weight` throws an exception? Ideally,
 `lookup_weight` should propagate that exception on, but if the exception
-happens to be `Not_found`, then that's not what will happen:
+happens to be `Key_not_found`, then that's not what will happen:
 
 ```ocaml env=main
 # lookup_weight ~compute_weight:(fun _ -> raise (Key_not_found "foo"))
@@ -687,7 +697,7 @@ clear what part of the code failed:
       with _ -> None
     with
     | None -> 0.
-  | Some data -> compute_weight data
+    | Some data -> compute_weight data
 val lookup_weight :
   compute_weight:('a -> float) -> (string * 'a) list -> string -> float =
   <fun>
@@ -702,7 +712,7 @@ statements directly, which lets you write this more concisely as follows.
 # let lookup_weight ~compute_weight alist key =
     match find_exn alist key with
     | exception _ -> 0.
-  | data -> compute_weight data
+    | data -> compute_weight data
 val lookup_weight :
   compute_weight:('a -> float) -> (string * 'a) list -> string -> float =
   <fun>
@@ -718,7 +728,7 @@ exception-free function from Base, `List.Assoc.find`, instead:
 # let lookup_weight ~compute_weight alist key =
     match List.Assoc.find ~equal:String.equal alist key with
     | None -> 0.
-  | Some data -> compute_weight data
+    | Some data -> compute_weight data
 val lookup_weight :
   compute_weight:('a -> float) ->
   (string, 'a) Base.List.Assoc.t -> string -> float = <fun>
@@ -729,10 +739,10 @@ val lookup_weight :
 A big part of the value of exceptions is that they provide useful debugging
 information in the form of a stack backtrace. Consider the following simple
 program:[debugging/stack backtraces]{.idx}[stack
-backtraces]{.idx}[backtraces]{.idx}:[exceptions/stack backtraces
+backtraces]{.idx}[backtraces]{.idx}[exceptions/stack backtraces
 for]{.idx}[error handling/exception backtracing]{.idx}
 
-```ocaml file=../../examples/code/error-handling/blow_up/blow_up.ml
+```ocaml file=examples/correct/blow_up/blow_up.ml
 open Base
 open Stdio
 exception Empty_list
@@ -750,161 +760,147 @@ If we build and run this program, we'll get a stack backtrace that will
 provide some information about where the error occurred and the stack of
 function calls that were in place at the time of the error:
 
-```scheme
-(executable
-  (name      blow_up)
-  (modules   blow_up)
-  (libraries core))
-```
-
-
-
-```sh dir=../../examples/code/error-handling/blow_up
-$ dune build blow_up.bc
-$ ./_build/default/blow_up.bc
+```sh dir=examples/correct/blow_up
+$ dune exec -- ./blow_up.exe
 3
-Fatal error: exception Blow_up.Empty_list
-Raised at file "blow_up.ml", line 6, characters 16-26
+Fatal error: exception Dune__exe__Blow_up.Empty_list
+Raised at file "blow_up.ml", line 6, characters 10-26
 Called from file "blow_up.ml", line 11, characters 16-29
 [2]
 ```
 
 You can also capture a backtrace within your program by calling
-`Exn.backtrace`, which returns the backtrace of the most recently thrown
-exception. This is useful for reporting detailed information on errors that
-did not cause your program to fail.[Exn module/Exn.backtrace]{.idx}
+`Backtrace.Exn.most_recent`, which returns the backtrace of the most
+recently thrown exception.  This is useful for reporting detailed
+information on errors that did not cause your program to fail.
+[Backtrace module/Backtrace.Exn.most_recent]{.idx}
 
 This works well if you have backtraces enabled, but that isn't always the
 case. In fact, by default, OCaml has backtraces turned off, and even if you
 have them turned on at runtime, you can't get backtraces unless you have
-compiled with debugging symbols. Core reverses the default, so if you're
-linking in Core, you will have backtraces enabled by default.
+compiled with debugging symbols. Base reverses the default, so if you're
+linking in Base, you will have backtraces enabled by default.
 
-Even using Core and compiling with debugging symbols, you can turn backtraces
-off by setting the `OCAMLRUNPARAM` environment variable to be empty:
+Even using Base and compiling with debugging symbols, you can turn
+backtraces off via the `OCAMLRUNPARAM` environment variable, as shown
+below.
 
-```scheme
-(executable
-  (name      blow_up)
-  (modules   blow_up)
-  (libraries core))
-```
-
-
-
-```sh dir=../../examples/code/error-handling/blow_up
-$ dune build blow_up.bc
-$ OCAMLRUNPARAM= ./_build/default/blow_up.bc
+```sh dir=examples/correct/blow_up
+$ OCAMLRUNPARAM=b=0 dune exec -- ./blow_up.exe
 3
-Fatal error: exception Blow_up.Empty_list
+Fatal error: exception Dune__exe__Blow_up.Empty_list
 [2]
 ```
 
-The resulting error message is considerably less informative. You can also
-turn backtraces off in your code by calling
-`Backtrace.Exn.set_recording false`.[Exn module/Backtrace.Exn.set_recording
-false]{.idx}
+The resulting error message is considerably less informative. You can
+also turn backtraces off in your code by calling
+`Backtrace.Exn.set_recording false`.[Exn
+module/Backtrace.Exn.set_recording false]{.idx}
 
-There is a legitimate reasons to run without backtraces: speed. OCaml's
-exceptions are fairly fast, but they're even faster still if you disable
-backtraces. Here's a simple benchmark that shows the effect, using the
-`core_bench` package:
+There is a legitimate reasons to run without backtraces:
+speed. OCaml's exceptions are fairly fast, but they're faster still if
+you disable backtraces. Here's a simple benchmark that shows the
+effect, using the `core_bench` package:
 
-```ocaml file=../../examples/code/error-handling/exn_cost/exn_cost.ml
+```ocaml file=examples/correct/exn_cost/exn_cost.ml
 open Core
 open Core_bench
 
 exception Exit
 
-let simple_computation () =
-  List.range 0 10
-  |> List.fold ~init:0 ~f:(fun sum x -> sum + x * x)
-  |> ignore
+let x = 0
 
-let simple_with_handler () =
-  try simple_computation () with Exit -> ()
+type how_to_end = Ordinary | Raise | Raise_no_backtrace
 
-let end_with_exn () =
-  try
-    simple_computation ();
-    raise Exit
-  with Exit -> ()
+let computation how_to_end =
+  let x = 10 in
+  let y = 40 in
+  let _z = x + (y * y) in
+  match how_to_end with
+  | Ordinary -> ()
+  | Raise -> raise Exit
+  | Raise_no_backtrace -> raise_notrace Exit
 
-let end_with_exn_notrace () =
-  try
-    simple_computation ();
-    Exn.raise_without_backtrace Exit
-  with Exit -> ()
+let computation_with_handler how = try computation how with Exit -> ()
 
 let () =
-  [ Bench.Test.create ~name:"simple computation"
-      (fun () -> simple_computation ());
-    Bench.Test.create ~name:"simple computation w/handler"
-      (fun () -> simple_with_handler ());
-    Bench.Test.create ~name:"end with exn"
-      (fun () -> end_with_exn ());
-    Bench.Test.create ~name:"end with exn notrace"
-      (fun () -> end_with_exn_notrace ());
+  [
+    Bench.Test.create ~name:"simple computation" (fun () ->
+        computation Ordinary);
+    Bench.Test.create ~name:"computation w/handler" (fun () ->
+        computation_with_handler Ordinary);
+    Bench.Test.create ~name:"end with exn" (fun () ->
+        computation_with_handler Raise);
+    Bench.Test.create ~name:"end with exn notrace" (fun () ->
+        computation_with_handler Raise_no_backtrace);
   ]
-  |> Bench.make_command
-  |> Command.run
+  |> Bench.make_command |> Command.run
 ```
 
-We're testing three cases here: a simple computation with no exceptions; the
-same computation with an exception handler but no thrown exceptions; and
-finally the same computation where we use the exception to do the control
-flow back to the caller.
+We're testing four cases here:
 
-If we run this with stacktraces on, the benchmark results look like this:
+- a simple computation with no exception,
+- the same, but with an exception handler but no exception thrown,
+- the same, but where an exception is thrown,
+- and finally, the same, but where we throw an exception using
+  `raise_notrace`, which is a version of `raise` which locally avoids
+  the costs of keeping track of the backtrace.
 
-```scheme
-(executable
-  (name      exn_cost)
-  (modules   exn_cost)
-  (libraries core core_bench))
+Here are the results.
+
+```sh dir=examples/correct/exn_cost,non-deterministic=output
+$ dune exec -- \
+> ./exn_cost.exe -ascii -quota 1 -clear-columns time cycles
+Estimated testing time 4s (4 benchmarks x 1s). Change using '-quota'.
+
+  Name                    Time/Run   Cycls/Run
+ ----------------------- ---------- -----------
+  simple computation        1.84ns       3.66c
+  computation w/handler     3.13ns       6.23c
+  end with exn             27.96ns      55.69c
+  end with exn notrace     11.69ns      23.28c
+
 ```
 
+Note that we lose just a small number of cycles to setting up an
+exception handler, which means that an unused exception handler is
+quite cheap indeed.  We lose a much bigger chunk, around 45 cycles, to
+actually raising an exception.  If we explicitly raise an exception
+with no stacktrace, it costs us about 15 cycles.
 
+We can also disable stacktraces, as we discussed, using
+`OCAMLRUNPARAM`.  That changes the results a bit.
 
-```sh dir=../../examples/code/error-handling/exn_cost,non-deterministic=command
-$ dune build exn_cost.exe
-$ ./_build/default/exn_cost.exe -ascii cycles -quota 1
-Estimated testing time 4s (4 benchmarks x 1s). Change using -quota SECS.
+```sh dir=examples/correct/exn_cost,non-deterministic=output
+$ OCAMLRUNPARAM=b=0 dune exec -- \
+> ./exn_cost.exe -ascii -quota 1 -clear-columns time cycles
+Estimated testing time 4s (4 benchmarks x 1s). Change using '-quota'.
 
-  Name                           Time/Run   Cycls/Run   mWd/Run   Percentage
- ------------------------------ ---------- ----------- --------- ------------
-  simple computation             177.25ns     353.04c    84.00w       90.04%
-  simple computation w/handler   171.60ns     341.81c    84.00w       87.17%
-  end with exn                   196.85ns     392.11c    84.00w      100.00%
-  end with exn notrace           169.20ns     337.00c    84.00w       85.95%
+  Name                    Time/Run   Cycls/Run
+ ----------------------- ---------- -----------
+  simple computation        1.71ns       3.41c
+  computation w/handler     3.04ns       6.05c
+  end with exn             19.36ns      38.57c
+  end with exn notrace     11.48ns      22.86c
+
 ```
 
-Here, we see that we lose something like 30 cycles to adding an exception
-handler, and 60 more to actually throwing and catching an exception. If we
-turn backtraces off, then the results look like this:
+The only significant change here is that raising an exception in the
+ordinary way becomes just a bit cheaper: 30 cycles instead of 45
+cycles.  But it's still not as fast as using `raise_notrace` explicitly.
 
-```sh dir=../../examples/code/error-handling/exn_cost,non-deterministic=output
-$ OCAMLRUNPARAM= ./_build/default/exn_cost.exe -ascii cycles -quota 1
-Estimated testing time 4s (4 benchmarks x 1s). Change using -quota SECS.
-|
-|    Name                           Time/Run   Cycls/Run   mWd/Run   Percentage
-|   ------------------------------ ---------- ----------- --------- ------------
-|    simple computation             428.29ns      1.33kc    84.00w       92.36%
-|    simple computation w/handler   463.72ns      1.44kc    84.00w      100.00%
-|    end with exn                   428.89ns      1.33kc    84.00w       92.49%
-|    end with exn notrace           413.29ns      1.28kc    84.00w       89.13%
-```
-
-Here, the handler costs about the same, but the exception itself costs only
-25, as opposed to 60 additional cycles. All told, this should only matter if
-you're using exceptions routinely as part of your flow control, which is in
-most cases a stylistic mistake anyway.
+Differences on this scale should only matter if you're using
+exceptions routinely as part of your flow control.  That's not a
+pattern you should be using routinely anyway, and when you do, it's
+better from a performance perspective to use `raise_notrace` in those
+particular places anyway.  All of which is to say, you should almost
+always leave stack-traces on.
 
 ### From Exceptions to Error-Aware Types and Back Again
 
 Both exceptions and error-aware types are necessary parts of programming in
 OCaml. As such, you often need to move between these two worlds. Happily,
-Core comes with some useful helper functions to help you do just that. For
+Base comes with some useful helper functions to help you do just that. For
 example, given a piece of code that can throw an exception, you can capture
 that exception into an option as follows:[exceptions/and error-aware
 types]{.idx}[error-aware return types]{.idx}[error handling/combining
@@ -915,9 +911,9 @@ exceptions and error-aware types]{.idx}
   Option.try_with (fun () -> find_exn alist key)
 val find : (string * 'a) list -> string -> 'a option = <fun>
 # find ["a",1; "b",2] "c"
-- : int option = None
+- : int option = Base.Option.None
 # find ["a",1; "b",2] "b"
-- : int option = Some 2
+- : int option = Base.Option.Some 2
 ```
 
 And `Result` and `Or_error` have similar `try_with` functions. So, we could
@@ -926,9 +922,9 @@ write:
 ```ocaml env=main
 # let find alist key =
   Or_error.try_with (fun () -> find_exn alist key)
-val find : (string * 'a) list -> string -> 'a Base.Or_error.t = <fun>
+val find : (string * 'a) list -> string -> 'a Or_error.t = <fun>
 # find ["a",1; "b",2] "c"
-- : int Base.Or_error.t = Base__.Result.Error ("Key_not_found(\"c\")")
+- : int Or_error.t = Base__.Result.Error ("Key_not_found(\"c\")")
 ```
 
 And then we can reraise that exception:

@@ -1,9 +1,12 @@
-(rule (with-stdout-to dune.gen
-  (run mdx rule --direction=to-ml README.md --prelude=prelude.ml)))
+(mdx
+ (files README.md)
+ (packages
+  core
+  ctypes
+  ctypes-foreign
+  mdx
+  ocaml-print-intf
+  ppx_jane)
+ (preludes prelude.ml))
 
-(alias
- (name   runtest)
- (deps   README.md)
- (action (diff dune.inc dune.gen)))
-
-(include dune.inc)
+(data_only_dirs examples)

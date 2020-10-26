@@ -13,8 +13,11 @@ can start by typing *ocaml* at the command line). These instructions will
 assume you're using `utop`, but the ordinary toplevel should mostly work
 fine.
 
+Before going any further, make sure you've followed the steps in [the
+installation page](install.html).
+
 ::: {data-type=note}
-## `Base`, `Core` and `Core_kernel`
+##### `Base`, `Core` and `Core_kernel`
 
 `Base` is one of a family of three standard library replacements, each with
 different use-cases, each building on the last. Here's a quick summary.
@@ -23,16 +26,16 @@ different use-cases, each building on the last. Here's a quick summary.
   library. It has a variety of basic efficient data structures like
   hash-tables, sets and sequences. It also defines the basic idioms for error
   handling and serialization, and contains well organized APIs for every
-  basic data type from integers to lazy values. This is comes along with a
+  basic data type from integers to lazy values. This comes along with a
   minimum of external dependencies, so `Base` just takes seconds to build and
   install. It's also portable, running on every platform that OCaml does,
   including Windows and JavaScript.
 
-- *`Core_kernel`* extends `Base` with many new data structures, like heaps,
-  and other capabilities, like types to represent times and time-zones, and
-  support for efficient binary serializers. It's still portable, but has many
-  more dependencies, takes longer to build, and will add more to the size of
-  your executables.
+- *`Core_kernel`* extends `Base` with many new data structures, like
+  heaps, types to represent times and time-zones, support for
+  efficient binary serializers, and other capabilities. It's still
+  portable, but has many more dependencies, takes longer to build, and
+  will add more to the size of your executables.
 
 - *`Core`* is the most full-featured, extending `Core_kernel` with support
   for a variety of UNIX APIs, but only works on UNIX-like OSs, including
@@ -88,10 +91,6 @@ language, but a few things jump right out at you:
 - After evaluating an expression, the toplevel first prints the type of the
   result, and then prints the result itself.
 
-- Function arguments are separated by spaces instead of by parentheses and
-  commas, which is more like the UNIX shell than it is like traditional
-  programming languages such as C or Java.
-
 - OCaml allows you to place underscores in the middle of numeric literals to
   improve readability. Note that underscores can be placed anywhere within a
   number, not just every three digits.
@@ -103,7 +102,7 @@ language, but a few things jump right out at you:
   be a bit of a nuisance, but it has its benefits, since it prevents some
   kinds of bugs that arise in other languages due to unexpected differences
   between the behavior of `int` and `float`. For example, in many languages,
-  `1 / 3` is zero, but `1 / 3.0` is a third. OCaml requires you to be
+  `1 / 3` is zero, but `1.0 /. 3.0` is a third. OCaml requires you to be
   explicit about which operation you're using.
 
 We can also create a variable to name the value of a given expression, using
@@ -138,13 +137,13 @@ The following examples, however, are not legal:
 
 ```ocaml env=main
 # let Seven = 3 + 4
-Characters 4-9:
+Line 1, characters 5-10:
 Error: Unbound constructor Seven
 # let 7x = 7
-Characters 4-6:
+Line 1, characters 5-7:
 Error: Unknown modifier 'x' for literal 7x
 # let x-plus-y = x + y
-Characters 6-10:
+Line 1, characters 7-11:
 Error: Syntax error
 ```
 
@@ -187,11 +186,16 @@ val ratio : int -> int -> float = <fun>
 - : float = 0.571428571428571397
 ```
 
-The preceding example also happens to be our first use of modules. Here,
-`Float.of_int` refers to the `of_int` function contained in the `Float`
-module. This is different from what you might expect from an object-oriented
-language, where dot-notation is typically used for accessing a method of an
-object. Note that module names always start with a capital letter.
+Note that in OCaml, function arguments are separated by spaces instead
+of by parentheses and commas, which is more like the UNIX shell than
+it is like traditional programming languages such as C or Java.
+
+The preceding example also happens to be our first use of
+modules. Here, `Float.of_int` refers to the `of_int` function
+contained in the `Float` module. This is different from what you might
+expect from an object-oriented language, where dot-notation is
+typically used for accessing a method of an object. Note that module
+names always start with a capital letter.
 
 Modules can also be opened to make their contents available without
 explicitly qualifying by the module name. We did that once already, when we
@@ -317,7 +321,7 @@ val sum_if_true : (int -> bool) -> int -> int -> int = <fun>
 
 In the above, we've marked every argument to the function with its type, with
 the final annotation indicating the type of the return value. Such type
-annotations can be placed on any expression in an OCaml program:
+annotations can be placed on any expression in an OCaml program.
 
 ### Inferring Generic Types
 
@@ -376,7 +380,7 @@ two different concrete types for `'a` in the same use of `first_if_true`:
 
 ```ocaml env=main
 # first_if_true big_number "short" "loooooong"
-Characters 25-32:
+Line 1, characters 26-33:
 Error: This expression has type string but an expression was expected of type
          int
 ```
@@ -386,14 +390,13 @@ whereas `"short"` and `"loooooong"` require that `'a` be instantiated as
 `string`, and they can't both be right at the same time.
 
 ::: {data-type=note}
-#### Type Errors Versus Exceptions
+##### Type Errors Versus Exceptions
 
-There's a big difference in OCaml (and really in any compiled language)
-between errors that are caught at compile time and those that are caught at
-runtime. It's better to catch errors as early as possible in the development
-process, and compilation time is best of all.[runtime exceptions vs. type
-errors]{.idx}[errors/runtime vs. compile time]{.idx}[exceptions/vs. type
-errors]{.idx}[type errors vs. exceptions]{.idx}
+There's a big difference in OCaml between errors that are caught at compile
+time and those that are caught at runtime. It's better to catch errors as early
+as possible in the development process, and compilation time is best of
+all.[runtime exceptions vs. type errors]{.idx}[errors/runtime vs. compile
+time]{.idx}[exceptions/vs. type errors]{.idx}[type errors vs. exceptions]{.idx}
 
 Working in the toplevel somewhat obscures the difference between runtime and
 compile-time errors, but that difference is still there. Generally, type
@@ -402,7 +405,7 @@ errors like this one:
 ```ocaml env=main
 # let add_potato x =
   x + "potato"
-Characters 25-33:
+Line 2, characters 7-15:
 Error: This expression has type string but an expression was expected of type
          int
 ```
@@ -419,7 +422,7 @@ val is_a_multiple : int -> int -> bool = <fun>
 - : bool = true
 # is_a_multiple 8 0
 Exception:
-Invalid_argument "8 % 0 in core_int.ml: modulus should be positive".
+(Invalid_argument "8 % 0 in core_int.ml: modulus should be positive")
 ```
 
 The distinction here is that type errors will stop you whether or not the
@@ -508,7 +511,7 @@ tuples:
 
 ```ocaml env=main
 # let numbers = [3;"four";5]
-Characters 17-23:
+Line 1, characters 18-24:
 Error: This expression has type string but an expression was expected of type
          int
 ```
@@ -635,7 +638,7 @@ matching]{.idx}
 ```ocaml env=main
 # let my_favorite_language (my_favorite :: the_rest) =
     my_favorite
-Characters 25-68:
+Lines 1-2, characters 26-16:
 Warning 8: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 []
@@ -660,7 +663,7 @@ on empty ones:
 # my_favorite_language ["English";"Spanish";"French"]
 - : string = "English"
 # my_favorite_language []
-Exception: Match_failure ("//toplevel//", 1, 26).
+Exception: "Match_failure //toplevel//:1:26"
 ```
 
 You can avoid these warnings, and more importantly make sure that your code
@@ -733,7 +736,7 @@ Logically, you can think of the evaluation of a simple recursive function
 like `sum` almost as if it were a mathematical equation whose meaning you
 were unfolding step by step:
 
-```ocaml file=../../examples/code/guided-tour/recursion.ml
+```ocaml skip
 sum [1;2;3]
 = 1 + sum [2;3]
 = 1 + (2 + sum [3])
@@ -755,9 +758,9 @@ for removing sequential duplicates:
     match list with
     | [] -> []
     | first :: second :: tl ->
-      if first = second then remove_sequential_duplicates (second :: tl)
-      else first :: remove_sequential_duplicates (second :: tl)
-Characters 48-246:
+      let new_tl = remove_sequential_duplicates (second :: tl) in
+      if first = second then new_tl else first :: new_tl
+Lines 2-6, characters 5-57:
 Warning 8: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 _::[]
@@ -775,8 +778,8 @@ fix this warning by adding another case to the match:
     | [] -> []
     | [hd] -> [hd]
     | hd1 :: hd2 :: tl ->
-      if hd1 = hd2 then remove_sequential_duplicates (hd2 :: tl)
-      else hd1 :: remove_sequential_duplicates (hd2 :: tl)
+      let new_tl = remove_sequential_duplicates (hd2 :: tl) in
+      if hd1 = hd2 then new_tl else hd1 :: new_tl
 val remove_sequential_duplicates : int list -> int list = <fun>
 # remove_sequential_duplicates [1;1;2;3;3;4;4;1;1;1]
 - : int list = [1; 2; 3; 4; 1]
@@ -795,6 +798,46 @@ time, you'll find yourself happy to use the iteration functions found in the
 to iterate in a new way.
 <a data-type="indexterm" data-startref="DSlists">&nbsp;</a>
 
+
+::: {data-type=note}
+##### Nesting lets with let and in
+
+`new_tl` in the above examples was our first use of `let` to define a
+new variable within the body of a function. A `let` paired with an
+`in` can be used to introduce a new binding within any local scope,
+including a function body. The `in` marks the beginning of the scope
+within which the new variable can be used. Thus, we could write:[let
+syntax/nested let binding]{.idx}
+
+```ocaml env=main
+# let z = 7 in
+  z + z
+- : int = 14
+```
+
+Note that the scope of the `let` binding is terminated by the
+double-semicolon, so the value of `z` is no longer available:
+
+```ocaml env=main
+# z
+Line 1, characters 1-2:
+Error: Unbound value z
+```
+
+We can also have multiple `let` statements in a row, each one adding a new
+variable binding to what came before:
+
+```ocaml env=main
+# let x = 7 in
+  let y = x * x in
+  x + y
+- : int = 56
+```
+
+This kind of nested `let` binding is a common way of building up a complex
+expression, with each `let` naming some component, before combining them in
+one final expression.
+:::
 
 ### Options
 
@@ -831,53 +874,13 @@ to split on.
       base ^ "." ^ String.lowercase ext
 val downcase_extension : string -> string = <fun>
 # List.map ~f:downcase_extension
-    [ "Hello_World.TXT"; "Hello_World.TXT"; "Hello_World" ]
+    [ "Hello_World.TXT"; "Hello_World.txt"; "Hello_World" ]
 - : string list = ["Hello_World.txt"; "Hello_World.txt"; "Hello_World"]
 ```
 
 Note that we used the `^` operator for concatenating strings. The
 concatenation operator is provided as part of the `Pervasives` module, which
 is automatically opened in every OCaml program.
-
-::: {data-type=note}
-#### Nesting lets with let and in
-
-`log_entry` was our first use of `let` to define a new variable within the
-body of a function. A `let` paired with an `in` can be used to introduce a
-new binding within any local scope, including a function body. The `in` marks
-the beginning of the scope within which the new variable can be used. Thus,
-we could write:[let syntax/nested let binding]{.idx}
-
-```ocaml env=local_let
-# let x = 7 in
-  x + x
-- : int = 14
-```
-
-Note that the scope of the `let` binding is terminated by the
-double-semicolon, so the value of `x` is no longer available:
-
-```ocaml env=local_let
-# x
-Characters 0-1:
-Error: Unbound value x
-```
-
-We can also have multiple `let` statements in a row, each one adding a new
-variable binding to what came before:
-
-```ocaml env=local_let
-# let x = 7 in
-  let y = x * x in
-  x + y
-- : int = 56
-```
-
-This kind of nested `let` binding is a common way of building up a complex
-expression, with each `let` naming some component, before combining them in
-one final expression.
-:::
-
 
 Options are important because they are the standard way in OCaml to encode a
 value that might not be there; there's no such thing as a
@@ -904,8 +907,7 @@ types. Here's a toy example of a data type representing a point in
 two-dimensional space:[datatypes/defining new]{.idx}
 
 ```ocaml env=main
-# type point2d = { x : float; y : float }
-type point2d = { x : float; y : float; }
+type point2d = { x : float; y : float }
 ```
 
 `point2d` is a *record* type, which you can think of as a tuple where the
@@ -952,12 +954,9 @@ types. Here, for example, are some types for modeling different geometric
 objects that contain values of type `point2d`:
 
 ```ocaml env=main
-# type circle_desc  = { center: point2d; radius: float }
-type circle_desc = { center : point2d; radius : float; }
-# type rect_desc    = { lower_left: point2d; width: float; height: float }
-type rect_desc = { lower_left : point2d; width : float; height : float; }
-# type segment_desc = { endpoint1: point2d; endpoint2: point2d }
-type segment_desc = { endpoint1 : point2d; endpoint2 : point2d; }
+type circle_desc  = { center: point2d; radius: float }
+type rect_desc    = { lower_left: point2d; width: float; height: float }
+type segment_desc = { endpoint1: point2d; endpoint2: point2d }
 ```
 
 Now, imagine that you want to combine multiple objects of these types
@@ -967,13 +966,9 @@ this is using a *variant* type:[datatypes/variant types]{.idx}[variant
 types/combining multiple object types with]{.idx}
 
 ```ocaml env=main
-# type scene_element =
-    | Circle  of circle_desc
-    | Rect    of rect_desc
-    | Segment of segment_desc
 type scene_element =
-    Circle of circle_desc
-  | Rect of rect_desc
+  | Circle  of circle_desc
+  | Rect    of rect_desc
   | Segment of segment_desc
 ```
 
@@ -981,8 +976,11 @@ The `|` character separates the different cases of the variant (the first
 `|` is optional), and each case has a capitalized tag, like `Circle`,
 `Rect` or `Segment`, to distinguish that case from the others.
 
-Here's how we might write a function for testing whether a point is in the
-interior of some element of a list of `scene_element`s:
+Here's how we might write a function for testing whether a point is in
+the interior of some element of a list of `scene_element`s.  Note that
+there are two `let` bindings in a row without a double semicolon
+between them. That's because the double semicolon is required only to
+tell *utop* to process the input, not to separate two declarations
 
 ```ocaml env=main
 # let is_inside_scene_element point scene_element =
@@ -993,7 +991,7 @@ interior of some element of a list of `scene_element`s:
     | Rect { lower_left; width; height } ->
       point.x    > lower_left.x && point.x < lower_left.x + width
       && point.y > lower_left.y && point.y < lower_left.y + height
-    | Segment { endpoint1; endpoint2 } -> false
+    | Segment _ -> false
 
   let is_inside_scene point scene =
     List.exists scene
@@ -1026,7 +1024,7 @@ case, we're using `List.exists` to check if there is a scene element within
 which our point resides.
 
 ::: {data-type=note}
-### `Base` and polymorphic comparison
+##### `Base` and polymorphic comparison
 
 One other thing to notice was the fact that we opened `Float.O` in the
 definition of `is_inside_scene_element`. That allowed us to use the simple,
@@ -1101,24 +1099,16 @@ numbers.[imperative programming/mutable record fields]{.idx}[mutable record
 fields]{.idx}[data structures/mutable record fields]{.idx}
 
 ```ocaml env=main
-# type running_sum =
-    { mutable sum: float;
-      mutable sum_sq: float; (* sum of squares *)
-      mutable samples: int;
-    }
-type running_sum = {
-  mutable sum : float;
-  mutable sum_sq : float;
-  mutable samples : int;
-}
+type running_sum =
+  { mutable sum: float;
+    mutable sum_sq: float; (* sum of squares *)
+    mutable samples: int;
+  }
 ```
 
 The fields in `running_sum` are designed to be easy to extend incrementally,
 and sufficient to compute means and standard deviations, as shown in the
-following example. Note that there are two `let` bindings in a row without a
-double semicolon between them. That's because the double semicolon is
-required only to tell *utop* to process the input, not to separate two
-declarations:
+following example.
 
 ```ocaml env=main
 # let mean rsum = rsum.sum /. Float.of_int rsum.samples
@@ -1268,7 +1258,7 @@ From a syntactic perspective, you should note the keywords that distinguish a
 
 Here's an example run of this code:
 
-```ocaml env=main
+```ocaml env=main,non-deterministic
 # let ar = Array.init 20 ~f:(fun i -> i)
 val ar : int array =
   [|0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16; 17; 18; 19|]
@@ -1276,7 +1266,7 @@ val ar : int array =
 - : unit = ()
 # ar
 - : int array =
-[|5; 4; 13; 17; 16; 19; 1; 6; 10; 14; 15; 7; 18; 2; 9; 11; 12; 0; 3; 8|]
+[|12; 16; 5; 13; 1; 6; 0; 7; 15; 19; 14; 4; 2; 11; 3; 8; 17; 9; 10; 18|]
 ```
 
 OCaml also supports `while` loops, as shown in the following function for
@@ -1317,7 +1307,7 @@ error by rewriting the function to avoid the short-circuiting:
     if !pos = Array.length array then None else Some !pos
 val find_first_negative_entry : int array -> int option = <fun>
 # find_first_negative_entry [|1;2;0;3|]
-Exception: Invalid_argument "index out of bounds".
+Exception: (Invalid_argument "index out of bounds")
 ```
 
 The or operator, `||`, short-circuits in a similar way to `&&`.
@@ -1334,7 +1324,7 @@ Here's the code, which you can save in a file called
 <em class="filename">sum.ml</em>. Note that we don't terminate expressions
 with `;;` here, since it's not required outside the toplevel.
 
-```ocaml file=../../examples/code/guided-tour/sum/sum.ml
+```ocaml file=examples/correct/sum/sum.ml
 open Base
 open Stdio
 
@@ -1370,7 +1360,7 @@ We'll compile our program using `dune`, a build system that's designed
 for use with OCaml projects. First, we need to write a *dune* file to
 specify the build.
 
-```scheme
+```scheme file=examples/correct/sum/dune
 (executable
  (name      sum)
  (libraries base stdio))
@@ -1382,7 +1372,7 @@ depend on.
 
 We can now invoke dune to build the executable.
 
-```sh dir=../../examples/code/guided-tour/sum
+```sh dir=examples/correct/sum
 $ dune build sum.exe
 ```
 

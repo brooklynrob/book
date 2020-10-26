@@ -1,5 +1,3 @@
-#require "base,ppx_jane";;
-
-open Base
+#require "base";;
 
 let () = Printexc.record_backtrace false

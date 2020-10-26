@@ -131,7 +131,7 @@ be "too polymorphic": `init` could have some type `'b list`:
     method push hd =
       v <- hd :: v
   end
-Characters 0-215:
+Lines 1-13, characters 1-6:
 Error: Some type variables are unbound in this type:
          class ['a] stack :
            'b list ->
@@ -710,12 +710,13 @@ define a common base class `shape` that also includes an equality method:
 # type shape = < equals : shape -> bool; area : float >
 type shape = < area : float; equals : shape -> bool >
 # (new square 5 :> shape)
-Characters 0-23:
+Line 1, characters 1-24:
 Error: Type square = < area : float; equals : square -> bool; width : int >
-       is not a subtype of shape = < area : float; equals : shape -> bool > 
+       is not a subtype of shape = < area : float; equals : shape -> bool >
        Type shape = < area : float; equals : shape -> bool >
        is not a subtype of
-         square = < area : float; equals : square -> bool; width : int > 
+         square = < area : float; equals : square -> bool; width : int >
+       The first object type has no method width
 ```
 
 The problem is that a `square` expects to be compared with a `square`, not an
@@ -843,7 +844,7 @@ for now you can safely ignore the details. You just need to run
 We will give each shape a `draw` method that describes how to draw the shape
 on the `Async_graphics` display:
 
-```ocaml file=../../examples/code/classes-async/shapes/shapes.ml
+```ocaml file=examples/shapes/shapes.ml,part=0
 open Core
 open Async
 open Async_graphics
@@ -857,7 +858,7 @@ Now let's add classes for making squares and circles. We include an
 `on_click` method for adding event handlers to the shapes: [geometric
 shapes]{.idx}
 
-```ocaml file=../../examples/code/classes-async/verbose_shapes.ml,part=1
+```ocaml file=examples/verbose_shapes.ml,part=1
 class square w x y = object(self)
   val mutable x: int = x
   method x = x
@@ -885,7 +886,7 @@ end
 The `square` class is pretty straightforward, and the `circle` class below
 also looks very similar:
 
-```ocaml file=../../examples/code/classes-async/verbose_shapes.ml,part=2
+```ocaml file=examples/verbose_shapes.ml,part=2
 class circle r x y = object(self)
   val mutable x: int = x
   method x = x
@@ -922,7 +923,7 @@ method but leave its definition to the subclasses.
 Here is the more succinct definition, starting with a virtual `shape` class
 that implements `on_click` and `on_mousedown`:
 
-```ocaml file=../../examples/code/classes-async/shapes/shapes.ml,part=1
+```ocaml file=examples/shapes/shapes.ml,part=1
 class virtual shape x y = object(self)
   method virtual private contains: int -> int -> bool
 
@@ -948,7 +949,7 @@ end
 
 Now we can define `square` and `circle` by inheriting from `shape`:
 
-```ocaml file=../../examples/code/classes-async/shapes/shapes.ml,part=2
+```ocaml file=examples/shapes/shapes.ml,part=2
 class square w x y = object
   inherit shape x y
 
@@ -1014,7 +1015,7 @@ For example, suppose we wanted to extend our previous shapes module with a
 from `circle` and used the inherited `on_click` to add a handler for click
 events:
 
-```ocaml file=../../examples/code/classes-async/shapes/shapes.ml,part=3
+```ocaml file=examples/shapes/shapes.ml,part=3
 class growing_circle r x y = object(self)
   inherit circle r x y
 
@@ -1046,7 +1047,7 @@ For example, consider this class, which inherits from `square` and defines a
 new `draw` method that uses `draw_rect` instead of `fill_rect` to draw the
 square:
 
-```ocaml file=../../examples/code/classes-async/multiple_inheritance.ml,part=1
+```ocaml file=examples/multiple_inheritance.ml,part=1
 class square_outline w x y = object
   inherit square w x y
   method draw = draw_rect x y width width
@@ -1057,7 +1058,7 @@ Since the `inherit` declaration comes before the method definition, the new
 `draw` method overrides the old one, and the square is drawn using
 `draw_rect`. But, what if we had defined `square_outline` as follows?
 
-```ocaml file=../../examples/code/classes-async/multiple_inheritance_wrong.ml,part=1
+```ocaml file=examples/multiple_inheritance_wrong.ml,part=1
 class square_outline w x y = object
   method draw = draw_rect x y w w
   inherit square w x y
@@ -1097,7 +1098,7 @@ shapes. We may wish to allow a shape to be dragged by the mouse. We can
 define this functionality for any object that has mutable `x` and `y` fields
 and an `on_mousedown` method for adding event handlers:
 
-```ocaml file=../../examples/code/classes-async/shapes/shapes.ml,part=4
+```ocaml file=examples/shapes/shapes.ml,part=4
 class virtual draggable = object(self)
   method virtual on_mousedown:
     ?start:unit Deferred.t ->
@@ -1130,20 +1131,20 @@ end
 
 This allows us to create draggable shapes using multiple inheritance:
 
-```ocaml file=../../examples/code/classes-async/shapes/shapes.ml,part=5
+```ocaml file=examples/shapes/shapes.ml,part=5
 class small_square = object
   inherit square 20 40 40
   inherit draggable
 end
 ```
 
-We can also use mixins to create animated shapes. Each animated shape has a
-list of update functions to be called during animation. We create an
-`animated` mixin to provide this update list and ensure that the functions in
-it are called regular intervals when the shape is animated:
-[animation/creating with mixins]{.idx}
+We can also use mixins to create animated shapes. Each animated shape
+has a list of update functions to be called during animation. We
+create an `animated` mixin to provide this update list and ensure that
+the functions in it are called at regular intervals when the shape is
+animated: [animation/creating with mixins]{.idx}
 
-```ocaml file=../../examples/code/classes-async/shapes/shapes.ml,part=6
+```ocaml file=examples/shapes/shapes.ml,part=6
 class virtual animated span = object(self)
   method virtual on_click:
     ?start:unit Deferred.t ->
@@ -1176,7 +1177,7 @@ end
 We use initializers to add functions to this update list. For example, this
 class will produce circles that move to the right for a second when clicked:
 
-```ocaml file=../../examples/code/classes-async/shapes/shapes.ml,part=7
+```ocaml file=examples/shapes/shapes.ml,part=7
 class my_circle = object
   inherit circle 20 50 50
   inherit animated Time.Span.second
@@ -1186,7 +1187,7 @@ end
 
 These initializers can also be added using mixins:
 
-```ocaml file=../../examples/code/classes-async/shapes/shapes.ml,part=8
+```ocaml file=examples/shapes/shapes.ml,part=8
 class virtual linear x' y' = object
   val virtual mutable updates: (int -> unit) list
   val virtual mutable x: int
@@ -1223,7 +1224,7 @@ Since the `linear` and `harmonic` mixins are only used for their side
 effects, they can be inherited multiple times within the same object to
 produce a variety of different animations: [linear mixins]{.idx}
 
-```ocaml file=../../examples/code/classes-async/shapes/shapes.ml,part=9
+```ocaml file=examples/shapes/shapes.ml,part=9
 class my_square x y = object
   inherit square 40 x y
   inherit draggable
@@ -1247,7 +1248,7 @@ on the graphical display and running that function using the Async scheduler:
 [animation/displaying animated shapes]{.idx}[multiple inheritance/displaying
 animated shapes with]{.idx}
 
-```ocaml file=../../examples/code/classes-async/shapes/shapes.ml,part=10
+```ocaml file=examples/shapes/shapes.ml,part=10
 let main () =
   let shapes = [
      (my_circle :> drawable);
@@ -1274,7 +1275,7 @@ graphical display and ask Async to run `repaint` at regular intervals.
 Finally, build the binary by linking against the `async_graphics` package,
 which will pull in all the other dependencies:
 
-```scheme
+```scheme file=examples/shapes/dune
 (executable
   (name      shapes)
   (modules   shapes)
@@ -1283,7 +1284,7 @@ which will pull in all the other dependencies:
 
 
 
-```sh dir=../../examples/code/classes-async/shapes
+```sh dir=examples/shapes,skip
 $ dune build shapes.exe
 ```
 

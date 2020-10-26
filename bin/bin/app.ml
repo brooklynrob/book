@@ -9,7 +9,7 @@ module Params = struct
   let repo_root =
     let default = "./" in
     let doc = sprintf "dir Root of repository. Default: \"%s\"." default in
-    flag "-repo-root" (optional_with_default default file) ~doc
+    flag "-repo-root" (optional_with_default default string) ~doc
 
   let production =
     let default = false in
@@ -27,10 +27,16 @@ module Params = struct
   let out_dir =
     let default = "_build" in
     let doc = sprintf "DIR Output directory. Default: \"%s\"" default in
-    flag "-o" (optional_with_default default file) ~doc
+    flag "-o" (optional_with_default default string) ~doc
+
+  let include_wip =
+    let doc =
+      "Whether to include WIP chapters to the generated rules, website or PDF"
+    in
+    flag "-include-wip" no_arg ~doc
 
   let file =
-    anon ("file" %: file)
+    anon ("file" %: string)
 
   let run_nondeterministic =
     flag "-run-nondeterministic" no_arg
@@ -60,14 +66,16 @@ let build_frontpage : Command.t =
     [%map_open
       let repo_root = Params.repo_root
       and out_dir = Params.out_dir
-      in fun () -> Book.make ~repo_root ~out_dir `Frontpage ]
+      and include_wip = Params.include_wip
+      in fun () -> Book.make ~repo_root ~include_wip ~out_dir `Frontpage ]
 
 let build_toc_page : Command.t =
   Command.async ~summary:"build TOC page"
     [%map_open
       let repo_root = Params.repo_root
       and out_dir = Params.out_dir
-      in fun () -> Book.make ~repo_root ~out_dir `Toc_page ]
+      and include_wip = Params.include_wip
+      in fun () -> Book.make ~repo_root ~include_wip ~out_dir `Toc_page ]
 
 let build_faqs_page : Command.t =
   Command.async ~summary:"build FAQs page"
@@ -83,6 +91,14 @@ let build_install_page : Command.t =
       and out_dir = Params.out_dir
       in fun () -> Book.make ~repo_root ~out_dir `Install ]
 
+let build_tex_inputs_page : Command.t =
+  Command.async ~summary:"build content page"
+    [%map_open
+      let repo_root = Params.repo_root
+      and out_dir = Params.out_dir
+      and include_wip = Params.include_wip
+      in fun () -> Book.make ~repo_root ~include_wip ~out_dir `Latex ]
+
 let build : Command.t =
   Command.group ~summary:"build commands"
     [ "chapter", build_chapter
@@ -90,8 +106,21 @@ let build : Command.t =
     ; "toc", build_toc_page
     ; "faqs", build_faqs_page
     ; "install", build_install_page
+    ; "inputs", build_tex_inputs_page
     ]
 
+let rules_web : Command.t =
+  Command.async ~summary:"generate dune rules for website generation"
+    [%map_open
+      let repo_root = Params.repo_root
+      and include_wip = Params.include_wip
+      in
+      fun () -> Rules.print_web ~include_wip ~repo_root ]
+
+let rules : Command.t =
+  Command.group ~summary:"generate dune rules"
+    [ "web", rules_web
+    ]
 
 (******************************************************************************)
 (* `main` command                                                             *)
@@ -100,6 +129,7 @@ let main =
   Command.group
     ~summary:"Real World OCaml authoring and publication tools"
     [ "build", build
+    ; "rules", rules
     ]
 
 let () =

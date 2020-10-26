@@ -64,8 +64,8 @@ major and minor heaps to account for this generational difference. We'll
 explain how they differ in more detail next. [OCAMLRUNPARAM]{.idx}[Gc
 module]{.idx}
 
-<aside data-type="sidebar">
-<h5>The Gc Module and OCAMLRUNPARAM</h5>
+::: {data-type=note}
+##### The Gc Module and OCAMLRUNPARAM
 
 OCaml provides several mechanisms to query and alter the behavior of the
 runtime system. The `Gc` module provides this functionality from within OCaml
@@ -79,9 +79,9 @@ You can also control the behavior of OCaml programs by setting the
 lets you set GC parameters without recompiling, for example to benchmark the
 effects of different settings. The format of `OCAMLRUNPARAM` is documented in
 the
-[ OCaml manual](http://caml.inria.fr/pub/docs/manual-ocaml/manual024.html).
+[ OCaml manual](https://caml.inria.fr/pub/docs/manual-ocaml/runtime.html).
 
-</aside>
+:::
 
 ## The Fast Minor Heap
 
@@ -137,7 +137,7 @@ collections, such as handling pending UNIX signals, and they don't ordinarily
 matter for application code. [minor heaps/setting size of]{.idx}
 
 ::: {data-type=note}
-#### Setting the Size of the Minor Heap
+##### Setting the Size of the Minor Heap
 
 The default minor heap size in OCaml is normally 2 MB on 64-bit platforms,
 but this is increased to 8 MB if you use Core (which generally prefers
@@ -154,7 +154,8 @@ val c : Core_kernel.Gc.control =
   {Core_kernel.Gc.Control.minor_heap_size = 262144;
    major_heap_increment = 15; space_overhead = 80; verbose = 0;
    max_overhead = 500; stack_limit = 1048576; allocation_policy = 0;
-   window_size = 1}
+   window_size = 1; custom_major_ratio = 44; custom_minor_ratio = 100;
+   custom_minor_max_size = 8192}
 # Gc.tune ~minor_heap_size:(262144 * 2) ()
 - : unit = ()
 ```
@@ -224,7 +225,7 @@ MB chunks (or 512 KB on 32-bit architectures). [major heaps/controlling
 growth of]{.idx}
 
 ::: {data-type=note}
-#### Controlling Major Heap Growth
+##### Controlling Major Heap Growth
 
 The `Gc` module uses the `major_heap_increment` value to control the major
 heap growth. This defines the number of words to add to the major heap per
@@ -459,7 +460,7 @@ Let's see this for ourselves with a simple test program. You'll need to
 install the Core benchmarking suite via `opam install core_bench` before you
 compile this code:
 
-```ocaml file=../../examples/code/gc/barrier_bench/barrier_bench.ml
+```ocaml file=examples/barrier_bench/barrier_bench.ml
 open Core
 open Core_bench
 
@@ -498,7 +499,7 @@ The benchmark loop iterates over both fields and increments a counter.
 Compile and execute this with some extra options to show the amount of
 garbage collection occurring:
 
-```scheme
+```scheme file=examples/barrier_bench/dune
 (executable
   (name      barrier_bench)
   (modules   barrier_bench)
@@ -507,9 +508,9 @@ garbage collection occurring:
 
 
 
-```sh dir=../../examples/code/gc/barrier_bench,non-deterministic=command
+```sh dir=examples/barrier_bench,non-deterministic=command,require-package=core_bench
 $ dune build barrier_bench.exe
-$ ./_build/default/barrier_bench.exe -ascii alloc -quota 1
+$ dune exec -- ./barrier_bench.exe -ascii alloc -quota 1
 Estimated testing time 2s (2 benchmarks x 1s). Change using -quota SECS.
 
   Name        Time/Run   mWd/Run   mjWd/Run   Prom/Run   Percentage
@@ -532,9 +533,9 @@ scenarios using `Core_bench` and experiment with the trade-offs. The
 command-line benchmark binaries have a number of useful options that affect
 garbage collection behavior:
 
-```sh dir=../../examples/code/gc/barrier_bench
+```sh dir=examples/barrier_bench
 $ dune build barrier_bench.exe
-$ ./_build/default/barrier_bench.exe -help
+$ dune exec -- ./barrier_bench.exe -help
 Benchmark for mutable, immutable
 
   barrier_bench.exe [COLUMN ...]
@@ -607,7 +608,7 @@ Let's explore this with a small example that finalizes values of different
 types, some of which are heap-allocated and others which are compile-time
 constants:
 
-```ocaml file=../../examples/code/gc/finalizer/finalizer.ml
+```ocaml file=examples/finalizer/finalizer.ml
 open Core
 open Async
 
@@ -622,7 +623,7 @@ type t = { foo: bool }
 
 let main () =
   let alloced_float = Unix.gettimeofday () in
-  let alloced_bool = alloced_float > 0.0 in
+  let alloced_bool = Float.is_positive alloced_float in
   let alloced_string = Bytes.create 4 in
   attach_finalizer "immediate int" 1;
   attach_finalizer "immediate float" 1.0;
@@ -644,7 +645,7 @@ let () =
 
 Building and running this should show the following output:
 
-```scheme
+```scheme file=examples/finalizer/dune
 (executable
   (name      finalizer)
   (modules   finalizer)
@@ -653,9 +654,9 @@ Building and running this should show the following output:
 
 
 
-```sh dir=../../examples/code/gc/finalizer
+```sh dir=examples/finalizer,require-package=async
 $ dune build finalizer.exe
-$ ./_build/default/finalizer.exe
+$ dune exec -- ./finalizer.exe
        immediate int: FAIL
      immediate float: FAIL
       allocated bool: FAIL

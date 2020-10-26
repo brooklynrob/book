@@ -4,26 +4,27 @@ ENV OPAMYES=1
 WORKDIR /home/opam/src
 
 # update opam
-RUN opam switch 4.06
+RUN opam switch 4.10
 RUN git -C /home/opam/opam-repository pull origin master && opam update -uy
 
-# pre-install dependencies
-RUN opam depext -iy core async ppx_sexp_conv ppx_deriving jbuilder \
-    toplevel_expect_test patdiff lambdasoup sexp_pretty fmt re
-    # Required for code blocks
-    # core_bench mtime yojson astring cryptokit ocp-index atd atdgen ctypes \
-    # ctypes-foreign textwrap uri
-    # cohttp-async
-
-# until a new release of mdx
-RUN opam pin add -y mdx --dev
+# install non-OCaml dependencies
+COPY Makefile /home/opam/src/.
+COPY rwo.opam /home/opam/src/.
+RUN opam pin add -n rwo . && opam depext -y rwo
+RUN opam install dune=2.6.0
 
 #install pandoc
 WORKDIR /tmp
-RUN curl -OL https://github.com/jgm/pandoc/releases/download/2.1.3/pandoc-2.1.3-1-amd64.deb && sudo dpkg -i pandoc-2.1.3-1-amd64.deb
+RUN curl -OL https://github.com/jgm/pandoc/releases/download/2.9/pandoc-2.9-1-amd64.deb && sudo dpkg -i pandoc-2.9-1-amd64.deb
+WORKDIR /home/opam/src
+
+#install pdflatex
+WORKDIR /tmp
+RUN sudo apt-get update && sudo apt-get -y install texlive-full
 WORKDIR /home/opam/src
 
 # compile the project
 COPY . /home/opam/src/
 RUN sudo chown -R opam /home/opam/src
 RUN opam exec -- make
+RUN opam exec -- make test
